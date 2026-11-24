@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { ObjectId } from "mongodb";
 import { isAdmin } from "@/lib/auth";
-import { cleanupUploadedImage, deleteProjectImageFromCloudinary } from "@/lib/cloudinary";
+import { cleanupUnreferencedProjectImages } from "@/lib/asset-cleanup";
 import {
+  claimProjectImageUploads,
   deleteProject,
   getProjectById,
   isDuplicateKeyError,
@@ -87,6 +88,11 @@ export async function PUT(request: Request, context: Context) {
 
     // Added images are in new but not in existing
     const newlyAddedPublicIds = Array.from(newPublicIds).filter((pid) => !existingPublicIds.has(pid));
+    const trustedUploadedIds = await claimProjectImageUploads(newlyAddedPublicIds);
+    if (trustedUploadedIds.length !== newlyAddedPublicIds.length) {
+      await cleanupUnreferencedProjectImages(trustedUploadedIds);
+      return NextResponse.json({ message: "New project images must be uploaded through the authenticated image upload endpoint." }, { status: 400 });
+    }
 
     const projectData = {
       ...parsed.data,
@@ -99,29 +105,16 @@ export async function PUT(request: Request, context: Context) {
     try {
       updated = await updateProject(id, projectData);
     } catch (dbError) {
-      // If DB update fails, clean up any new images that were uploaded for this update
-      if (newlyAddedPublicIds.length > 0) {
-        await Promise.allSettled(newlyAddedPublicIds.map((pid) => cleanupUploadedImage(pid)));
-      }
+      await cleanupUnreferencedProjectImages(trustedUploadedIds);
       throw dbError;
     }
 
     if (!updated) {
+      await cleanupUnreferencedProjectImages(trustedUploadedIds);
       return NextResponse.json({ message: "Project not found." }, { status: 404 });
     }
 
-    // If DB update succeeded, delete removed Cloudinary assets asynchronously
-    if (removedPublicIds.length > 0) {
-      Promise.allSettled(
-        removedPublicIds.map(async (pid) => {
-          try {
-            await deleteProjectImageFromCloudinary(pid);
-          } catch (cleanupError) {
-            console.warn(`Failed to delete removed Cloudinary asset ${pid}:`, cleanupError);
-          }
-        })
-      );
-    }
+    await cleanupUnreferencedProjectImages(removedPublicIds);
 
     // Revalidate paths
     revalidatePath("/");
@@ -164,24 +157,14 @@ export async function DELETE(_request: Request, context: Context) {
       return NextResponse.json({ message: "Project not found." }, { status: 404 });
     }
 
-    // Collect all Cloudinary public IDs associated with this project (images only)
+    // Collect IDs before deleting the document; cleanup rechecks all remaining references.
     const publicIdsToDelete = new Set<string>();
     if (existing.image?.publicId) publicIdsToDelete.add(existing.image.publicId);
     (existing.media || []).forEach((m) => {
       if (m.type === "image" && m.publicId) publicIdsToDelete.add(m.publicId);
     });
 
-    if (publicIdsToDelete.size > 0) {
-      Promise.allSettled(
-        Array.from(publicIdsToDelete).map(async (pid) => {
-          try {
-            await deleteProjectImageFromCloudinary(pid);
-          } catch (cloudinaryError) {
-            console.warn(`Failed to delete Cloudinary asset ${pid}:`, cloudinaryError);
-          }
-        })
-      );
-    }
+    await cleanupUnreferencedProjectImages([...publicIdsToDelete]);
 
     // Revalidate paths
     revalidatePath("/");

@@ -1,7 +1,7 @@
 import "server-only";
-import { MongoClient, ObjectId, type Collection, type Db, type Document } from "mongodb";
+import { MongoClient, ObjectId, type Collection, type Db, type Document, type Filter } from "mongodb";
 import type { Project, ProjectImage, ProjectInput, ProjectMedia } from "@/types/project";
-import { getPrimaryImage } from "@/lib/media";
+import { buildGoogleDriveEmbedUrl, getPrimaryImage, isValidGoogleDriveFileId } from "./media.ts";
 
 export type ProjectDocument = {
   _id: ObjectId;
@@ -89,7 +89,7 @@ export async function getProjectsCollection(): Promise<Collection<ProjectDocumen
   return mongoGlobal.portfolioProjectsCollection;
 }
 
-function toProject(document: ProjectDocument): Project {
+export function toProject(document: ProjectDocument): Project {
   const { _id, ...project } = document;
 
   let media: ProjectMedia[] = Array.isArray(project.media) ? [...project.media] : [];
@@ -111,6 +111,23 @@ function toProject(document: ProjectDocument): Project {
       },
     ];
   }
+
+  // Legacy media arrays sometimes predate the primary-image flag. Promote the
+  // first image only when no primary was explicitly selected.
+  if (project.isPublished && !media.some((item) => item.type === "image" && item.isPrimary)) {
+    const firstImageIndex = media.findIndex((item) => item.type === "image");
+    if (firstImageIndex >= 0) {
+      media = media.map((item, index) => item.type === "image" && index === firstImageIndex
+        ? { ...item, isPrimary: true }
+        : item);
+    }
+  }
+
+  // Never expose a persisted/client-provided iframe URL. Rebuild it from the
+  // validated Drive ID, and leave malformed historical entries non-embeddable.
+  media = media.map((item) => item.type === "video"
+    ? { ...item, embedUrl: isValidGoogleDriveFileId(item.fileId) ? buildGoogleDriveEmbedUrl(item.fileId) : "" }
+    : item);
 
   // Ensure there's a primary image if images exist
   const primary = getPrimaryImage(media);
@@ -137,8 +154,10 @@ function toProject(document: ProjectDocument): Project {
   };
 }
 
-function toDocument(input: ProjectInput, timestamps: { createdAt: string; updatedAt: string }): Omit<ProjectDocument, "_id"> {
-  const media = Array.isArray(input.media) ? [...input.media] : [];
+export function toDocument(input: ProjectInput, timestamps: { createdAt: string; updatedAt: string }): Omit<ProjectDocument, "_id"> {
+  const media = (Array.isArray(input.media) ? [...input.media] : []).map((item) => item.type === "video"
+    ? { ...item, embedUrl: buildGoogleDriveEmbedUrl(item.fileId) }
+    : item);
   const primary = getPrimaryImage(media);
 
   const coverImage = primary?.secureUrl || input.coverImage || input.image?.secureUrl || "";
@@ -170,12 +189,16 @@ export function isDuplicateKeyError(error: unknown): boolean {
 
 export async function getProjects(includeDrafts = false): Promise<Project[]> {
   const collection = await getProjectsCollection();
-  const filter = includeDrafts ? {} : { isPublished: true };
+  const filter = projectVisibilityFilter(includeDrafts);
   const documents = await collection
     .find(filter)
     .sort({ isFeatured: -1, sortOrder: 1, updatedAt: -1 })
     .toArray();
   return documents.map(toProject);
+}
+
+export function projectVisibilityFilter(includeDrafts = false): Filter<ProjectDocument> {
+  return includeDrafts ? {} : { isPublished: true };
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
@@ -241,4 +264,55 @@ export async function deleteProject(id: string): Promise<boolean> {
   const collection = await getProjectsCollection();
   const result = await collection.deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount === 1;
+}
+
+export async function isProjectImageReferenced(publicId: string): Promise<boolean> {
+  const collection = await getProjectsCollection();
+  return Boolean(await collection.findOne({
+    $or: [
+      { "image.publicId": publicId },
+      { media: { $elemMatch: { type: "image", publicId } } },
+    ],
+  }, { projection: { _id: 1 } }));
+}
+
+type CloudinaryCleanupRecord = { _id: string; attempts: number; createdAt: string; lastAttemptAt: string; lastError: string };
+
+export async function enqueueCloudinaryCleanup(publicId: string, error: string): Promise<void> {
+  const database = await getDatabase();
+  await database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").updateOne(
+    { _id: publicId },
+    { $setOnInsert: { createdAt: new Date().toISOString() }, $set: { lastAttemptAt: new Date().toISOString(), lastError: error }, $inc: { attempts: 1 } },
+    { upsert: true },
+  );
+}
+
+export async function getPendingCloudinaryCleanup(limit = 50): Promise<CloudinaryCleanupRecord[]> {
+  const database = await getDatabase();
+  return database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").find().sort({ createdAt: 1 }).limit(limit).toArray();
+}
+
+export async function removeCloudinaryCleanup(publicId: string): Promise<void> {
+  const database = await getDatabase();
+  await database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").deleteOne({ _id: publicId });
+}
+
+export async function registerProjectImageUpload(publicId: string): Promise<void> {
+  const database = await getDatabase();
+  await database.collection<{ _id: string; createdAt: string }>("project_image_uploads").updateOne(
+    { _id: publicId },
+    { $set: { createdAt: new Date().toISOString() } },
+    { upsert: true },
+  );
+}
+
+export async function claimProjectImageUploads(publicIds: string[]): Promise<string[]> {
+  const ids = [...new Set(publicIds)].filter(Boolean);
+  if (!ids.length) return [];
+  const database = await getDatabase();
+  const collection = database.collection<{ _id: string }>("project_image_uploads");
+  const found = await collection.find({ _id: { $in: ids } }, { projection: { _id: 1 } }).toArray();
+  const trustedIds = found.map((item) => item._id);
+  if (trustedIds.length) await collection.deleteMany({ _id: { $in: trustedIds } });
+  return trustedIds;
 }

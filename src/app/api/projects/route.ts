@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/auth";
-import { createProject, getProjects, isDuplicateKeyError, slugIsTaken } from "@/lib/db";
+import { claimProjectImageUploads, createProject, getProjects, isDuplicateKeyError, slugIsTaken } from "@/lib/db";
 import { projectCreateSchema } from "@/lib/validation";
-import { cleanupUploadedImage } from "@/lib/cloudinary";
+import { cleanupUnreferencedProjectImages } from "@/lib/asset-cleanup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +41,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "That project URL slug is already in use." }, { status: 409 });
     }
 
+    const imagePublicIds = (parsed.data.media || [])
+      .filter((item) => item.type === "image")
+      .map((image) => image.publicId);
+    if (parsed.data.image?.publicId) imagePublicIds.push(parsed.data.image.publicId);
+    const trustedUploadedIds = await claimProjectImageUploads(imagePublicIds);
+    if (trustedUploadedIds.length !== new Set(imagePublicIds).size) {
+      await cleanupUnreferencedProjectImages(trustedUploadedIds);
+      return NextResponse.json({ message: "Project images must be uploaded through the authenticated image upload endpoint." }, { status: 400 });
+    }
+
     const projectData = {
       ...parsed.data,
       publishedAt: parsed.data.isPublished ? (parsed.data.publishedAt || new Date().toISOString()) : undefined,
@@ -50,17 +60,7 @@ export async function POST(request: Request) {
     try {
       project = await createProject(projectData);
     } catch (createError) {
-      // If project creation fails, clean up any newly uploaded images from Cloudinary
-      const imagePublicIds = (parsed.data.media || [])
-        .filter((item) => item.type === "image")
-        .map((img) => img.publicId)
-        .filter(Boolean);
-
-      if (parsed.data.image?.publicId) {
-        imagePublicIds.push(parsed.data.image.publicId);
-      }
-
-      await Promise.allSettled(imagePublicIds.map((pid) => cleanupUploadedImage(pid)));
+      await cleanupUnreferencedProjectImages(trustedUploadedIds);
       throw createError;
     }
 

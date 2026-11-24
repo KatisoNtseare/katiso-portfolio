@@ -35,8 +35,8 @@ import {
   getPrimaryImage,
   MAX_PROJECT_IMAGES,
   MAX_PROJECT_VIDEOS,
-  normalizeMediaOrder,
 } from "@/lib/media";
+import { addProjectMedia, removeProjectMedia, reorderProjectMedia, setPrimaryProjectImage } from "@/lib/project-media";
 
 type Draft = {
   title: string;
@@ -302,7 +302,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
         isPrimary: isFirstImage,
       };
 
-      const updatedMedia = normalizeMediaOrder([...draft.media, newImageItem]);
+      const updatedMedia = addProjectMedia(draft.media, newImageItem);
 
       setDraft((curr) => {
         const primary = getPrimaryImage(updatedMedia);
@@ -374,7 +374,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
       displayOrder: draft.media.length + 1,
     };
 
-    const updatedMedia = normalizeMediaOrder([...draft.media, newVideoItem]);
+    const updatedMedia = addProjectMedia(draft.media, newVideoItem);
 
     setDraft((curr) => ({
       ...curr,
@@ -390,15 +390,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   }
 
   function setPrimaryImage(mediaId: string) {
-    const updatedMedia = draft.media.map((item) => {
-      if (item.type === "image") {
-        return {
-          ...item,
-          isPrimary: item.id === mediaId,
-        };
-      }
-      return item;
-    });
+    const updatedMedia = setPrimaryProjectImage(draft.media, mediaId);
 
     const primary = getPrimaryImage(updatedMedia);
 
@@ -421,20 +413,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   }
 
   function removeMediaItem(mediaId: string) {
-    const remaining = draft.media.filter((item) => item.id !== mediaId);
-    const remainingImages = remaining.filter((m): m is ProjectImageMedia => m.type === "image");
-
-    // If the removed item was primary, designate the first remaining image as primary
-    let hasPrimary = remainingImages.some((img) => img.isPrimary);
-    const updatedMedia = remaining.map((item) => {
-      if (item.type === "image" && !hasPrimary) {
-        hasPrimary = true;
-        return { ...item, isPrimary: true };
-      }
-      return item;
-    });
-
-    const normalized = normalizeMediaOrder(updatedMedia);
+    const normalized = removeProjectMedia(draft.media, mediaId);
     const primary = getPrimaryImage(normalized);
 
     setDraft((curr) => ({
@@ -456,14 +435,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   }
 
   function moveMediaItem(index: number, direction: "up" | "down") {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= draft.media.length) return;
-
-    const items = [...draft.media];
-    const [moved] = items.splice(index, 1);
-    items.splice(targetIndex, 0, moved);
-
-    const normalized = normalizeMediaOrder(items);
+    const normalized = reorderProjectMedia(draft.media, index, direction);
     setDraft((curr) => ({
       ...curr,
       media: normalized,

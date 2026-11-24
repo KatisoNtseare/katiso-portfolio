@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { extractGoogleDriveFileId, buildGoogleDriveEmbedUrl, MAX_PROJECT_IMAGES, MAX_PROJECT_VIDEOS } from "@/lib/media";
+import { extractGoogleDriveFileId, buildGoogleDriveEmbedUrl, MAX_PROJECT_IMAGES, MAX_PROJECT_VIDEOS } from "./media.ts";
 
 const optionalUrl = z.string().trim().max(1000).refine((value) => {
   if (!value) return true;
@@ -39,10 +39,22 @@ export const projectVideoMediaSchema = z.object({
   provider: z.literal("google-drive"),
   fileId: z.string().trim().min(15, "A valid Google Drive file ID is required."),
   originalUrl: z.string().url("A valid Google Drive URL is required."),
-  embedUrl: z.string().url("A valid embed URL is required."),
+  // Accepted for old clients, but always discarded and regenerated below.
+  embedUrl: z.string().max(1000).optional(),
+  isPrimary: z.boolean().optional().refine((value) => value !== true, "Videos cannot be primary images."),
   title: z.string().trim().min(1, "Video title is required.").max(200),
   description: z.string().trim().max(2000).optional().default(""),
   displayOrder: z.number().int().min(0).max(10000).default(0),
+}).superRefine((data, ctx) => {
+  const extracted = extractGoogleDriveFileId(data.originalUrl);
+  if (!extracted || extracted !== data.fileId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Video URL must be a supported Google Drive sharing link matching its file ID.", path: ["originalUrl"] });
+  }
+}).transform((data) => {
+  const { embedUrl, isPrimary, ...safeData } = data;
+  void embedUrl;
+  void isPrimary;
+  return { ...safeData, embedUrl: buildGoogleDriveEmbedUrl(data.fileId) };
 });
 
 export const projectMediaSchema = z.discriminatedUnion("type", [
@@ -128,38 +140,19 @@ export const projectSchema = z.object({
     });
   }
 
-  // If published, exactly one primary image is strictly required
-  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim());
+  // A legacy cover image is read-compatible, but cannot satisfy the publish rule.
   if (data.isPublished) {
-    if (images.length > 0) {
-      if (primaryImages.length !== 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Published projects must have exactly one primary image selected.",
-          path: ["media"],
-        });
-      }
-    } else if (!hasCoverImage) {
+    if (primaryImages.length !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "A valid cover image is required before publishing a project.",
-        path: ["coverImage"],
+        message: "Published projects must have exactly one primary image selected.",
+        path: ["media"],
       });
     }
   }
 });
 
-export const projectCreateSchema = projectSchema.superRefine((data, ctx) => {
-  const images = (data.media || []).filter((item) => item.type === "image");
-  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim()) || images.length > 0;
-  if (!hasCoverImage) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "At least one project image is required to create a project.",
-      path: ["coverImage"],
-    });
-  }
-});
+export const projectCreateSchema = projectSchema;
 
 export const contactSchema = z.object({
   name: z.string().trim().min(2).max(100),

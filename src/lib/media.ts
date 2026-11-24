@@ -1,7 +1,5 @@
-import type { ProjectImageMedia, ProjectMedia, ProjectVideoMedia } from "@/types/project";
+import type { ProjectImageMedia, ProjectMedia } from "@/types/project";
 
-const GOOGLE_DRIVE_PATH_REGEX = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i;
-const GOOGLE_DRIVE_QUERY_REGEX = /drive\.google\.com\/(?:open|uc).*?[?&]id=([a-zA-Z0-9_-]+)/i;
 const GOOGLE_DRIVE_FILE_ID_REGEX = /^[a-zA-Z0-9_-]{15,60}$/;
 
 export const MAX_PROJECT_IMAGES = 20;
@@ -14,23 +12,18 @@ export const MAX_PROJECT_VIDEOS = 5;
 export function extractGoogleDriveFileId(url: string): string | null {
   if (!url || typeof url !== "string") return null;
   const trimmed = url.trim();
+  if (GOOGLE_DRIVE_FILE_ID_REGEX.test(trimmed)) return trimmed;
+  let parsed: URL;
+  try { parsed = new URL(trimmed); } catch { return null; }
+  if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== "drive.google.com" || parsed.port) return null;
+  const pathMatch = parsed.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]{15,60})(?:\/|$)/);
+  const queryId = ["open", "uc"].includes(parsed.pathname.replace(/^\//, "")) ? parsed.searchParams.get("id") : null;
+  const id = pathMatch?.[1] || queryId;
+  return id && GOOGLE_DRIVE_FILE_ID_REGEX.test(id) ? id : null;
+}
 
-  // If the user pasted just the raw file ID:
-  if (GOOGLE_DRIVE_FILE_ID_REGEX.test(trimmed) && !trimmed.includes("/") && !trimmed.includes(".")) {
-    return trimmed;
-  }
-
-  const pathMatch = trimmed.match(GOOGLE_DRIVE_PATH_REGEX);
-  if (pathMatch && pathMatch[1] && GOOGLE_DRIVE_FILE_ID_REGEX.test(pathMatch[1])) {
-    return pathMatch[1];
-  }
-
-  const queryMatch = trimmed.match(GOOGLE_DRIVE_QUERY_REGEX);
-  if (queryMatch && queryMatch[1] && GOOGLE_DRIVE_FILE_ID_REGEX.test(queryMatch[1])) {
-    return queryMatch[1];
-  }
-
-  return null;
+export function isValidGoogleDriveFileId(fileId: string): boolean {
+  return GOOGLE_DRIVE_FILE_ID_REGEX.test(fileId);
 }
 
 /**
@@ -38,6 +31,7 @@ export function extractGoogleDriveFileId(url: string): string | null {
  */
 export function buildGoogleDriveEmbedUrl(fileId: string): string {
   const cleanId = fileId.trim();
+  if (!isValidGoogleDriveFileId(cleanId)) throw new Error("Invalid Google Drive file ID.");
   return `https://drive.google.com/file/d/${cleanId}/preview`;
 }
 

@@ -252,6 +252,10 @@ Log in to `/admin` to manage your portfolio:
 5. **Editing & Image Replacement**: Edit any field at any time. When replacing a cover image, the new asset is saved to MongoDB first; once confirmed, the old Cloudinary asset is automatically removed.
 6. **Deletion**: Permanently removes the MongoDB project document and its corresponding Cloudinary image asset with safety checks.
 
+Cloudinary deletion runs after the MongoDB change succeeds and checks that no project still references an image. Failed deletions are recorded in the MongoDB `cloudinary_cleanup` collection and retried on demand with `npm run cloudinary:cleanup` (configure the same MongoDB and Cloudinary environment variables first). Newly uploaded images are registered server-side so a failed project save can clean up only assets returned by this application's upload endpoint. If MongoDB is unavailable while recording a cleanup retry, the server logs the asset ID and error. After restoring connectivity, an operator must check that no project references that ID, then delete it from the Cloudinary console; this rare case cannot be retried automatically because the cleanup record could not be stored.
+
+Google Drive videos are embedded from validated Drive sharing links. The video owner must set sharing permissions so the intended portfolio visitors can view the file; private Drive files will not play for visitors.
+
 ---
 
 ## 10. Deployment on Oracle Cloud / VPS

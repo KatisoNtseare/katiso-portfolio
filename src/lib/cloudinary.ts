@@ -5,6 +5,16 @@ import type { ProjectImage } from "@/types/project";
 export const CLOUDINARY_PROJECT_FOLDER = "katiso-portfolio/project-pictures";
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
+const PROJECT_PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/;
+
+export function isProjectImagePublicId(publicId: unknown): publicId is string {
+  if (typeof publicId !== "string" || !publicId || publicId !== publicId.trim()) return false;
+  if (!PROJECT_PUBLIC_ID_PATTERN.test(publicId)) return false;
+  const segments = publicId.split("/");
+  const folder = CLOUDINARY_PROJECT_FOLDER.split("/");
+  return segments.length > folder.length && folder.every((part, index) => segments[index] === part);
+}
+
 export type DetectedImageType = {
   mime: "image/jpeg" | "image/png" | "image/webp";
   ext: "jpg" | "png" | "webp";
@@ -77,9 +87,10 @@ export function getCloudinaryClient() {
 
 export async function uploadProjectImageToCloudinary(
   buffer: Buffer,
-  options?: { altText?: string; publicIdSuffix?: string }
+  options?: { altText?: string; publicIdSuffix?: string },
+  clientOverride?: typeof cloudinary
 ): Promise<ProjectImage> {
-  const client = getCloudinaryClient();
+  const client = clientOverride || getCloudinaryClient();
 
   if (!buffer || buffer.length === 0) {
     throw new Error("Cannot upload an empty file.");
@@ -127,17 +138,14 @@ export async function uploadProjectImageToCloudinary(
   });
 }
 
-export async function deleteProjectImageFromCloudinary(publicId: string): Promise<boolean> {
-  if (!publicId) return false;
-
-  // Safety check: ensure publicId belongs to our project folder!
-  if (!publicId.startsWith(CLOUDINARY_PROJECT_FOLDER)) {
-    console.warn(`Refusing to delete asset outside of project folder: ${publicId}`);
+export async function deleteProjectImageFromCloudinary(publicId: string, clientOverride?: typeof cloudinary): Promise<boolean> {
+  if (!isProjectImagePublicId(publicId)) {
+    console.warn("Refusing to delete an invalid or out-of-folder Cloudinary asset.");
     return false;
   }
 
   try {
-    const client = getCloudinaryClient();
+    const client = clientOverride || getCloudinaryClient();
     const result = await client.uploader.destroy(publicId, { invalidate: true });
     // Cloudinary returns { result: 'ok' } or { result: 'not found' }
     return result.result === "ok" || result.result === "not found";

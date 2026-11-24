@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Eye, Film, Image as ImageIcon, Maximize2, Video, X } from "lucide-react";
 import type { ProjectImageMedia, ProjectMedia, ProjectVideoMedia } from "@/types/project";
-import { sortProjectMedia } from "@/lib/media";
+import { buildGoogleDriveEmbedUrl, isValidGoogleDriveFileId, sortProjectMedia } from "@/lib/media";
 
 type Props = {
   media: ProjectMedia[];
@@ -16,7 +16,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const sortedMedia = useMemo(() => {
-    return sortProjectMedia(media || []);
+    return sortProjectMedia(media || []).filter((item) => item.type === "image" || isValidGoogleDriveFileId(item.fileId));
   }, [media]);
 
   const images = useMemo(() => {
@@ -164,7 +164,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
               <div key={item.id} className="media-card media-card-video">
                 <div className="media-video-aspect-wrap">
                   <iframe
-                    src={item.embedUrl}
+                    src={buildGoogleDriveEmbedUrl(item.fileId)}
                     title={item.title || `${projectTitle} demonstration`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

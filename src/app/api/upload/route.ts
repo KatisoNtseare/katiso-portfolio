@@ -3,9 +3,11 @@ import { isAdmin } from "@/lib/auth";
 import {
   MAX_IMAGE_SIZE_BYTES,
   detectImageType,
+  deleteProjectImageFromCloudinary,
   isCloudinaryConfigured,
   uploadProjectImageToCloudinary,
 } from "@/lib/cloudinary";
+import { registerProjectImageUpload } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +56,14 @@ export async function POST(request: Request) {
     }
 
     const image = await uploadProjectImageToCloudinary(buffer, { altText });
+
+    try {
+      await registerProjectImageUpload(image.publicId);
+    } catch (error) {
+      const deleted = await deleteProjectImageFromCloudinary(image.publicId);
+      if (!deleted) console.error(`New Cloudinary upload could not be registered or removed: ${image.publicId}`, error);
+      return NextResponse.json({ message: "Image storage is temporarily unavailable. Please try again." }, { status: 503 });
+    }
 
     return NextResponse.json({ image }, { status: 201 });
   } catch (error) {
