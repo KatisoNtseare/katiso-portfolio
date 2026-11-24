@@ -1,19 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Mono, DM_Sans, Instrument_Serif } from "next/font/google";
+import { IBM_Plex_Mono, Manrope, Sora } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { site } from "@/lib/site";
 import "./globals.css";
 import "./ui-refinements.css";
 import "./portfolio-design.css";
 
-const display = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--f-display", display: "swap" });
-const sans = DM_Sans({ subsets: ["latin"], variable: "--f-body", display: "swap" });
-const mono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--f-mono", display: "swap" });
+const display = Sora({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--f-display", display: "swap" });
+const sans = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--f-body", display: "swap" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--f-mono", display: "swap" });
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f4ef" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0f0e" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f9fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#f7f9fc" },
   ],
 };
 

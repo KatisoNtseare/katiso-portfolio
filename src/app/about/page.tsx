@@ -20,17 +20,17 @@ export default function AboutPage() {
       <section className="folio-page-hero">
         <div className="k-shell">
           <h1 className="k-display">I like knowing how the whole system works.</h1>
-          <p>My work starts with understanding the people, rules and constraints around a problem, then shaping a clear path from requirement to dependable software.</p>
+          <p>Backend, frontend, data, infrastructure and people: I build by understanding how the full product fits together and what must remain dependable after launch.</p>
         </div>
       </section>
       <section className="folio-content">
         <div className="k-shell k-about">
           <figure className="k-about-portrait"><Image src="/images/fullPicture.jpg" alt="Katiso Ntseare" fill sizes="(max-width: 900px) 360px, 34vw" /></figure>
           <div className="k-prose">
-            <p className="k-lede">I’m a software developer with a Diploma in Information Technology: Software Development.</p>
-            <p>I enjoy understanding how systems fit together and translating requirements into applications that are useful, maintainable and reliable. My interests span backend development, full-stack applications, database engineering and system design.</p>
-            <p>My engineering mindset is practical. I value clear requirements, deliberate architecture, readable code and testing. I think carefully about access, data integrity and the people who will maintain a system after its first release.</p>
-            <p>Alongside software development, I’m building ProIT Solutions, an initiative focused on delivering technology solutions to businesses and organisations. It keeps my attention on the connection between technical decisions and real operating needs.</p>
+            <p className="k-lede">Diploma graduate in Information Technology: Software Development, with a strong foundation in C#, Python and modern web engineering.</p>
+            <p>I build full-stack applications, REST APIs, authentication systems and database-driven platforms. My experience includes ASP.NET Core, Entity Framework Core, SQL Server, Next.js, React, TypeScript and Python FastAPI.</p>
+            <p>My engineering mindset is practical: understand the requirements, establish clear boundaries, protect sensitive operations and test what matters. I work comfortably across application code, databases, networking, deployment and security.</p>
+            <p>From February 2025 to November 2026, I served as Chairman of GKSS, developing leadership, communication and student community experience alongside my academic and professional development.</p>
             <div className="k-principles">{principles.map((item) => <div key={item.title}><strong>{item.title}</strong><span>{item.text}</span></div>)}</div>
             <div className="k-actions">
               <CvLink />

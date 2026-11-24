@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Software developer", description: site.description };
 
 const background = [
-  { label: "Education", title: "Software development foundation", text: "Diploma in Information Technology: Software Development, with grounding in systems analysis, databases and application design." },
-  { label: "ProIT Solutions", title: "Building a technology business", text: "Developing software and technology services around practical organisational needs." },
-  { label: "Project delivery", title: "From requirements to working systems", text: "Applied experience across web applications, operational workflows, data and engineering fundamentals." },
+  { label: "Education", title: "Diploma in Information Technology", text: "Graduated in Software Development from Nelson Mandela University, with grounding in systems analysis, databases and application design." },
+  { label: "2025–2026", title: "Chairman, GKSS", text: "Served as Chairman of the Graduate and Career Society from February 2025 to November 2026, supporting student engagement, leadership and professional development." },
+  { label: "Work experience", title: "Product and software development", text: "Experience as a Software Developer at Taxar and as a Computer Tutor at Nelson Mandela University." },
 ];
 
 export default async function HomePage() {
@@ -30,25 +30,43 @@ export default async function HomePage() {
       <section className="k-hero">
         <div className="k-shell k-hero-grid">
           <div>
-            <p className="k-label">Katiso Ntseare · Software developer</p>
-            <h1 className="k-display">Software built around <em>real work.</em></h1>
-            <p className="k-hero-intro">I design and build web applications, backend services and cloud systems that turn operational needs into dependable software.</p>
+            <p className="k-label">Katiso Ntseare · IT professional</p>
+            <h1 className="k-display">I build digital products <em>that work beautifully.</em></h1>
+            <p className="k-hero-intro">Software developer specialising in backend engineering, full-stack applications, DevOps and security. Open to graduate and junior engineering opportunities across South Africa.</p>
             <div className="k-actions">
               <Link className="k-btn" href="/projects">Selected work <ArrowRight size={16} aria-hidden="true" /></Link>
               <CvLink />
             </div>
-            <p className="k-status">Open to software engineering opportunities</p>
+            <dl className="k-hero-facts" aria-label="Professional overview">
+              <div><dt>Focus</dt><dd>Backend · Full-stack · DevOps</dd></div>
+              <div><dt>Location</dt><dd>Johannesburg / Gqeberha</dd></div>
+              <div><dt>Contact</dt><dd>063 359 9308</dd></div>
+            </dl>
+            <p className="k-status">Open to graduate and junior software roles</p>
           </div>
           <figure className="k-portrait">
             <div className="k-portrait-frame">
               <Image src="/images/halfPicture.jpg" alt="Katiso Ntseare, software developer and founder of ProIT Solutions" fill priority sizes="(max-width: 900px) 340px, 34vw" />
+              <div className="k-portrait-badge" aria-label="Available for opportunities">
+                <span />
+                <div><small>Available for</small><strong>Graduate roles</strong></div>
+              </div>
             </div>
-            <figcaption>Founder, ProIT Solutions</figcaption>
+            <figcaption><span>Founder</span> ProIT Solutions</figcaption>
           </figure>
         </div>
       </section>
 
-      <section className="k-section" id="work">
+      <section className="k-proof" aria-label="Career highlights">
+        <div className="k-shell k-proof-grid">
+          <div><strong>Graduate</strong><span>Diploma in IT</span></div>
+          <div><strong>Full-stack</strong><span>From interface to API</span></div>
+          <div><strong>Chairman</strong><span>GKSS · 2025–2026</span></div>
+          <div><strong>South Africa</strong><span>JHB / Gqeberha</span></div>
+        </div>
+      </section>
+
+      <section className="k-section k-section--paper" id="work">
         <div className="k-shell">
           <div className="k-section-head">
             <span className="k-label">Selected work</span>
@@ -62,7 +80,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="k-section" id="capabilities">
+      <section className="k-section k-section--sand" id="capabilities">
         <div className="k-shell">
           <div className="k-section-head">
             <span className="k-label">Capabilities</span>
@@ -82,7 +100,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="k-section" id="background">
+      <section className="k-section k-section--tint" id="background">
         <div className="k-shell">
           <div className="k-section-head">
             <span className="k-label">Background</span>
@@ -102,7 +120,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="k-section" id="github">
+      <section className="k-section k-section--blueprint" id="github">
         <div className="k-shell">
           <div className="k-section-head">
             <span className="k-label">Open source</span>

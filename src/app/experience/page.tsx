@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Experience & approach", description: "Education, project work, entrepreneurship and engineering approach." };
 
 const experience = [
-  { period: "Formal foundation", title: "Diploma in Information Technology: Software Development", description: "Academic grounding in software development, systems analysis, databases and information technology." },
-  { period: "Entrepreneurship", title: "ProIT Solutions", description: "Building a technology business and developing software solutions around real organisational requirements." },
-  { period: "Applied engineering", title: "Client and product initiatives", description: "Practical work across application workflows, accommodation systems, learning platforms and operational software concepts. Individual contributions and delivery status are documented per case study." },
-  { period: "Knowledge sharing", title: "Technical learning and community support", description: "Supporting peer learning through technical mentoring, programming guidance and collaborative learning initiatives." },
+  { period: "2025", title: "Software Developer / Product Developer — Taxar", description: "Contributed to product engineering across backend and frontend workflows, authentication, APIs, platform architecture, Git collaboration and deployment practices." },
+  { period: "2025", title: "Computer Tutor — Nelson Mandela University", description: "Tutored students in Microsoft 365, C#, computer networks and information systems, using practical examples to build confidence in technical concepts and problem solving." },
+  { period: "February 2025 – November 2026", title: "Chairman — GKSS", description: "Provided leadership and represented the student community, supporting collaboration, communication and professional development initiatives." },
+  { period: "Graduate", title: "Diploma in Information Technology: Software Development", description: "Nelson Mandela University. Focus areas included software development, databases, networks, information systems, backend and frontend engineering." },
+  { period: "2023", title: "Higher Certificate: Information Technology — User Support Services", description: "Nelson Mandela University. Built practical experience in hardware, operating systems, networking, troubleshooting and end-user technical support." },
+  { period: "Entrepreneurship", title: "ProIT Solutions", description: "Building a technology business focused on software development, automation, cloud infrastructure and cybersecurity for practical organisational needs." },
 ];
 
 export default function ExperiencePage() {
