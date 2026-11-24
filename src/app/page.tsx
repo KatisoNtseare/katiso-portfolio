@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Software developer", description: si
 
 const background = [
   { label: "Education", title: "Diploma in Information Technology", text: "Graduated in Software Development from Nelson Mandela University, with grounding in systems analysis, databases and application design." },
-  { label: "2025–2026", title: "Chairman, GKSS", text: "Served as Chairman of the Graduate and Career Society from February 2025 to November 2026, supporting student engagement, leadership and professional development." },
+  { label: "2025–2026", title: "Chairman, Geekulcha Student Society", text: "Led the GKSS campus community from February 2025 to November 2026, supporting hackathons, coding boot camps, technical workshops and peer-to-peer learning." },
   { label: "Work experience", title: "Product and software development", text: "Experience as a Software Developer at Taxar and as a Computer Tutor at Nelson Mandela University." },
 ];
 
@@ -186,17 +186,29 @@ export default async function HomePage() {
       </section>
 
       <section className="k-band" id="proit">
-        <div className="k-shell k-band-grid">
-          <span className="k-label">ProIT Solutions</span>
-          <div>
-            <h2 className="k-display">I also run a technology company.</h2>
-            <p>I’m building ProIT Solutions, a technology business focused on helping organisations use software and modern technology to solve practical challenges.</p>
-            <ul aria-label="ProIT services"><li>Software development</li><li>AI &amp; automation</li><li>Cloud &amp; DevOps</li><li>Cybersecurity</li></ul>
-            <div className="k-actions">
-              <a className="k-link" href={site.proit} target="_blank" rel="noreferrer">ProIT Solutions <ExternalLink size={15} aria-hidden="true" /></a>
-              <a className="k-link" href={site.managedCloud} target="_blank" rel="noreferrer">ProIT Managed Cloud <ExternalLink size={15} aria-hidden="true" /></a>
-            </div>
+        <div className="k-shell">
+          <div className="k-band-heading">
+            <span className="k-label">Two offerings, one technology business</span>
+            <h2 className="k-label text-white">Companies I Run</h2>
+            <h3 className="k-display">
+              Building software, powering businesses, and managing the infrastructure behind it.
+            </h3>
           </div>
+          <div className="k-proit-grid">
+            <article className="k-proit-card">
+              <span className="k-label">ProIT Solutions (Pty) Ltd · Parent company</span>
+              <h3>Software engineering and digital transformation.</h3>
+              <p>Custom software, web and application development, AI and business automation, cloud and DevOps, cybersecurity and SaaS development.</p>
+              <a className="k-link" href={site.proit} target="_blank" rel="noreferrer">Visit proit.dev <ExternalLink size={15} aria-hidden="true" /></a>
+            </article>
+            <article className="k-proit-card">
+              <span className="k-label">PROIT Managed Cloud · Service brand</span>
+              <h3>Your cloud, fully managed.</h3>
+              <p>Managed website hosting, business email, cloud storage, backups, application hosting, server management and database infrastructure.</p>
+              <a className="k-link" href={site.managedCloud} target="_blank" rel="noreferrer">Visit cloud.proit.dev <ExternalLink size={15} aria-hidden="true" /></a>
+            </article>
+          </div>
+          <p className="k-proit-note">PROIT Managed Cloud is operated by ProIT Solutions (Pty) Ltd. The company builds the technology; the cloud service provides the infrastructure to operate it.</p>
         </div>
       </section>
 
