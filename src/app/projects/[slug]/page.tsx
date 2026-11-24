@@ -63,31 +63,41 @@ export default async function ProjectDetailPage({ params }: Props) {
     { label: "Source repository", href: project.repoUrl, icon: Github },
   ].filter((item) => isValidHttpUrl(item.href));
 
-  return (
-    <main className="portfolio-page case-page">
-      <section className="case-hero">
-        <div className="folio-shell">
-          <Link className="case-back" href="/projects"><ArrowLeft size={15} aria-hidden="true" /> All projects</Link>
-          <div className="case-heading">
-            <div><h1 className="folio-display">{project.title}</h1><p>{project.summary}</p></div>
-            <dl className="case-meta"><div><dt>Category</dt><dd>{project.category}</dd></div><div><dt>Year</dt><dd className="folio-mono">{project.year || "—"}</dd></div><div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div></dl>
+    return (
+    <main>
+      <section className="k-case-head">
+        <div className="k-shell">
+          <Link className="k-back" href="/projects"><ArrowLeft size={15} aria-hidden="true" /> All projects</Link>
+          <div className="k-case-title">
+            <div><h1 className="k-display">{project.title}</h1><p className="k-summary">{project.summary}</p></div>
+            <dl className="k-meta">
+              <div><dt>Category</dt><dd>{project.category}</dd></div>
+              <div><dt>Year</dt><dd>{project.year || "—"}</dd></div>
+              <div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div>
+            </dl>
           </div>
-          <div className="case-visual" style={coverStyle} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? altText : undefined}>
-            {isNextImageSource(imageUrl) ? <Image src={imageUrl} alt="" fill priority sizes="(max-width: 700px) 90vw, 100vw" className="case-image" /> : null}
-            {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>Project imagery unavailable</span></div> : null}
-          </div>
+          {imageUrl ? (
+            <div className="k-case-visual" style={coverStyle} role="img" aria-label={altText}>
+              {isNextImageSource(imageUrl) ? <Image src={imageUrl} alt="" fill priority sizes="(max-width: 1200px) 92vw, 1160px" /> : null}
+            </div>
+          ) : null}
         </div>
       </section>
-      <div className="folio-shell case-layout">
+      <div className="k-shell k-case-layout">
         <div className="case-content">
-          {sections.length ? sections.map(([title, content]) => <section className="case-section" key={title}><h2>{title}</h2><p>{content}</p></section>) : <div className="folio-empty">This case study is being expanded. More project details will be added soon.</div>}
+          {sections.length ? sections.map(([title, content]) => <section className="case-section" key={title}><h2>{title}</h2><p>{content}</p></section>) : <p className="k-empty">This case study is being expanded. More project details will be added soon.</p>}
           {project.architectureFlow && project.architectureFlow.length > 1 ? <section className="case-section"><h2>System flow</h2><ArchitectureFlow nodes={project.architectureFlow} /></section> : null}
           {project.media?.length ? <MediaGallery media={project.media} projectTitle={project.title} /> : null}
         </div>
-        <aside className="case-sidebar" aria-label="Project details">
-          <h2>Technology</h2><div className="case-tech">{(project.technologies || []).map((technology) => <span className="folio-tag" key={technology}>{technology}</span>)}</div>
-          <h2>Project links</h2>
-          {projectLinks.length ? <div className="case-links">{projectLinks.map(({ label, href, icon: Icon }) => <a href={href.trim()} target="_blank" rel="noreferrer" key={label}>{label}<Icon size={14} aria-hidden="true" /></a>)}</div> : <span className="case-no-links">Links will appear here when available.</span>}
+        <aside className="k-case-side" aria-label="Project details">
+          <div>
+            <h2>Technology</h2>
+            {(project.technologies || []).length ? <ul>{(project.technologies || []).map((technology) => <li key={technology}>{technology}</li>)}</ul> : <p className="k-muted">Not listed.</p>}
+          </div>
+          <div>
+            <h2>Links</h2>
+            {projectLinks.length ? <div className="k-case-links">{projectLinks.map(({ label, href, icon: Icon }) => <a href={href.trim()} target="_blank" rel="noreferrer" key={label}>{label}<Icon size={14} aria-hidden="true" /></a>)}</div> : <p className="k-muted">Links will appear here when available.</p>}
+          </div>
         </aside>
       </div>
     </main>
