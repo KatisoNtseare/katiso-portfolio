@@ -19,7 +19,8 @@
     "email:test": "node --env-file-if-exists=.env.local scripts/test-email.mjs",
     "db:check": "node --env-file-if-exists=.env.local scripts/check-database.mjs",
     "admin:hash": "node scripts/hash-password.mjs",
-    "db:seed": "node --env-file-if-exists=.env.local scripts/seed-database.mjs"
+    "db:seed": "node --env-file-if-exists=.env.local scripts/seed-database.mjs",
+    "projects:publish-featured": "node --env-file-if-exists=.env.local scripts/publish-featured-projects.mjs"
   },
   "dependencies": {
     "cloudinary": "^2.11.0",

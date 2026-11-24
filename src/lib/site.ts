@@ -4,7 +4,7 @@ export const site = {
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://katiso.proit.dev",
   description: "IT professional and software developer building full-stack applications, secure APIs and practical cloud systems.",
   github: "https://github.com/KatisoNtseare",
-  linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || "",
+  linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || "https://www.linkedin.com/search/results/people/?keywords=Katiso%20Ntseare",
   email: "katisontseare@outlook.com",
   phone: "063 359 9308",
   location: "Johannesburg / Gqeberha, South Africa",

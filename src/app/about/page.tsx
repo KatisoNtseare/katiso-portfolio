@@ -27,10 +27,10 @@ export default function AboutPage() {
         <div className="k-shell k-about">
           <figure className="k-about-portrait"><Image src="/images/fullPicture.jpg" alt="Katiso Ntseare" fill sizes="(max-width: 900px) 360px, 34vw" /></figure>
           <div className="k-prose">
-            <p className="k-lede">Diploma graduate in Information Technology: Software Development, with a strong foundation in C#, Python and modern web engineering.</p>
-            <p>I build full-stack applications, REST APIs, authentication systems and database-driven platforms. My experience includes ASP.NET Core, Entity Framework Core, SQL Server, Next.js, React, TypeScript and Python FastAPI.</p>
-            <p>My engineering mindset is practical: understand the requirements, establish clear boundaries, protect sensitive operations and test what matters. I work comfortably across application code, databases, networking, deployment and security.</p>
-            <p>From February 2025 to November 2026, I served as Chairman of GKSS, developing leadership, communication and student community experience alongside my academic and professional development.</p>
+            <p className="k-lede">I am an IT professional and software developer who turns operational requirements into dependable applications.</p>
+            <p>I build full-stack applications, REST APIs, authentication systems and database-driven platforms with C#, ASP.NET Core, Entity Framework Core, SQL Server, Next.js, React, TypeScript and Python FastAPI.</p>
+            <p>I enjoy working across the complete product lifecycle: understanding the problem, defining boundaries, modelling data, protecting sensitive workflows and preparing applications for deployment. My academic, tutoring and product-development experience has strengthened both my technical judgement and my ability to explain complex ideas clearly.</p>
+            <p>From February 2025 to November 2026, I served as Chairman of GKSS. The role developed my leadership, communication and community-building skills while I supported student engagement and professional development.</p>
             <div className="k-principles">{principles.map((item) => <div key={item.title}><strong>{item.title}</strong><span>{item.text}</span></div>)}</div>
             <div className="k-actions">
               <CvLink />
