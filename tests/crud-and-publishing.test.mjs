@@ -80,13 +80,15 @@ test("Application MongoDB CRUD, media, publishing and atomic upload claims", asy
   const uploadRegistry = cleanupClient.db(databaseName).collection("project_image_uploads");
 
   t.after(async () => {
-    try {
-      if (projectId) await deleteProject(projectId);
-      if (otherProjectId) await deleteProject(otherProjectId);
-      await uploadRegistry.deleteOne({ _id: uploadId });
-    } finally {
-      await Promise.all([cleanupClient.close(), closeMongoConnection()]);
+    const cleanupErrors = [];
+    for (const id of [projectId, otherProjectId]) {
+      if (!id) continue;
+      try { await deleteProject(id); } catch (error) { cleanupErrors.push(error); }
     }
+    try { await uploadRegistry.deleteOne({ _id: uploadId }); } catch (error) { cleanupErrors.push(error); }
+    try { await cleanupClient.close(); } catch (error) { cleanupErrors.push(error); }
+    try { await closeMongoConnection(); } catch (error) { cleanupErrors.push(error); }
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "MongoDB integration test cleanup failed.");
   });
 
   await t.test("creates and reads a draft through the application repository", async () => {

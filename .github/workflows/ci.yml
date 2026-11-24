@@ -13,32 +13,84 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Lint, typecheck, test and build
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Lint
         run: npm run lint
 
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Type check
         run: npm run typecheck
 
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Integration tests
+  integration-tests:
+    name: Integration verification (MongoDB + Cloudinary)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Require isolated integration credentials
+        env:
+          MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
+          CLOUDINARY_TEST_CLOUD_NAME: ${{ secrets.CLOUDINARY_TEST_CLOUD_NAME }}
+          CLOUDINARY_TEST_API_KEY: ${{ secrets.CLOUDINARY_TEST_API_KEY }}
+          CLOUDINARY_TEST_API_SECRET: ${{ secrets.CLOUDINARY_TEST_API_SECRET }}
+        run: |
+          missing=()
+          for name in MONGODB_TEST_URI CLOUDINARY_TEST_CLOUD_NAME CLOUDINARY_TEST_API_KEY CLOUDINARY_TEST_API_SECRET; do
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Integration verification is INCOMPLETE. Missing test-only secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          echo 'All required test-only credentials are present; the database name is fixed to katiso_portfolio_test.'
+      - name: MongoDB and Cloudinary integration tests
         run: npm run test:integration
         env:
           MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
@@ -46,6 +98,24 @@ jobs:
           CLOUDINARY_TEST_CLOUD_NAME: ${{ secrets.CLOUDINARY_TEST_CLOUD_NAME }}
           CLOUDINARY_TEST_API_KEY: ${{ secrets.CLOUDINARY_TEST_API_KEY }}
           CLOUDINARY_TEST_API_SECRET: ${{ secrets.CLOUDINARY_TEST_API_SECRET }}
+      - name: Report integration verification status
+        if: always()
+        env:
+          INTEGRATION_STATUS: ${{ job.status }}
+        run: echo "MongoDB + Cloudinary integration verification: ${INTEGRATION_STATUS}" >> "$GITHUB_STEP_SUMMARY"
 
+  production-build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Production build
         run: npm run build

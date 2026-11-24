@@ -43,9 +43,23 @@ test("Live application integration with isolated MongoDB and Cloudinary test cre
   let projectId;
 
   t.after(async () => {
-    if (projectId) await db.deleteProject(projectId);
-    if (uploaded.length) await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId));
-    await db.closeMongoConnection();
+    const cleanupErrors = [];
+    try {
+      if (projectId) await db.deleteProject(projectId);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    try {
+      if (uploaded.length) await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId));
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    try {
+      await db.closeMongoConnection();
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "Live integration test cleanup failed.");
   });
 
   await t.test("uploads multiple real images using the production Cloudinary helper", async () => {
@@ -113,7 +127,15 @@ test("Live application integration with isolated MongoDB and Cloudinary test cre
 
     assert.equal(await db.deleteProject(projectId), true);
     projectId = undefined;
-    await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId));
+    const { getPendingCloudinaryCleanup } = db;
+    await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId), {
+      deleteImage: async (publicId) => publicId === uploaded[0].publicId
+        ? false
+        : cloudinary.deleteProjectImageFromCloudinary(publicId),
+    });
+    assert.ok((await getPendingCloudinaryCleanup()).some((item) => item._id === uploaded[0].publicId), "a failed deletion is persisted for retry");
+    await cleanup.cleanupUnreferencedProjectImages([uploaded[0].publicId]);
+    assert.equal((await getPendingCloudinaryCleanup()).some((item) => item._id === uploaded[0].publicId), false, "the real Cloudinary retry clears the cleanup record");
     assert.equal(await db.isProjectImageReferenced(uploaded[1].publicId), false);
   });
 });

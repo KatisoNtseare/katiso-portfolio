@@ -214,7 +214,7 @@ Run integration tests separately:
 npm run test:integration
 ```
 
-The MongoDB integration test requires `MONGODB_TEST_URI` and `MONGODB_TEST_DB=katiso_portfolio_test`. The Cloudinary/MongoDB integration test additionally requires `CLOUDINARY_TEST_CLOUD_NAME`, `CLOUDINARY_TEST_API_KEY`, and `CLOUDINARY_TEST_API_SECRET`. Tests use only the dedicated `katiso_portfolio_test` database and temporary Cloudinary images. They never fall back to `.env.local`, `MONGODB_URI`, or production Cloudinary credentials. When test-only credentials are absent, the relevant test reports itself as skipped.
+The MongoDB integration test requires `MONGODB_TEST_URI` and `MONGODB_TEST_DB=katiso_portfolio_test`. The Cloudinary/MongoDB integration test additionally requires `CLOUDINARY_TEST_CLOUD_NAME`, `CLOUDINARY_TEST_API_KEY`, and `CLOUDINARY_TEST_API_SECRET`. Tests use only the dedicated `katiso_portfolio_test` database and temporary Cloudinary images. They never fall back to `.env.local`, `MONGODB_URI`, or production Cloudinary credentials. Locally, tests report a skip if test-only credentials are absent. GitHub Actions requires all four test-only secrets in its Integration verification job; missing credentials fail its preflight and leave integration verification visibly incomplete rather than green. Unit tests and production build run in independent jobs.
 
 Run static type checking:
 
