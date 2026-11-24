@@ -1,32 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/#expertise", label: "Expertise" },
-  { href: "/projects", label: "Projects" },
-  { href: "/experience", label: "Experience" },
   { href: "/about", label: "About" },
-  { href: "/#proit", label: "ProIT" },
+  { href: "/experience", label: "Experience" },
+  { href: "/projects", label: "Projects" },
 ];
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  function closeMenu() { setOpen(false); }
+
   return (
-    <header className="site-header">
-      <div className="shell header-inner">
-        <Link href="/" className="brand" aria-label="Katiso Ntseare home" onClick={() => setOpen(false)}>
-          <span className="brand-mark">K<span>.</span></span>
-          <span className="brand-name">KATISO NTSEARE</span>
+    <header className="folio-header">
+      <div className="folio-shell folio-header-inner">
+        <Link href="/" className="folio-brand" aria-label="Katiso Ntseare home" onClick={closeMenu}>
+          <span className="folio-brand-mark" aria-hidden="true">K<span>.</span></span>
+          <span>KATISO NTSEARE</span>
         </Link>
-        <nav className={`main-nav ${open ? "is-open" : ""}`} aria-label="Main navigation">
-          {links.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>{link.label}</Link>)}
-          <Link href="/contact" className="nav-contact" onClick={() => setOpen(false)}>Let's talk <ArrowUpRight size={15} /></Link>
+        <nav id="primary-navigation" className={`folio-nav ${open ? "is-open" : ""}`} aria-label="Main navigation">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} aria-current={pathname === link.href || pathname.startsWith(`${link.href}/`) ? "page" : undefined} onClick={closeMenu}>
+              {link.label}
+            </Link>
+          ))}
+          <Link href="/contact" className="folio-nav-contact" aria-current={pathname === "/contact" ? "page" : undefined} onClick={closeMenu}>
+            Contact
+          </Link>
         </nav>
-        <button className="mobile-menu" onClick={() => setOpen((value) => !value)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
-          {open ? <X size={21} /> : <Menu size={21} />}
+        <button
+          className="folio-menu"
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-label={open ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={open}
+          aria-controls="primary-navigation"
+        >
+          {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
         </button>
       </div>
     </header>

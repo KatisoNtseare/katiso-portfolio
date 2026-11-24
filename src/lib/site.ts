@@ -6,6 +6,7 @@ export const site = {
   github: "https://github.com/KatisoNtseare",
   linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || "",
   proit: "https://proit.dev",
+  managedCloud: "https://www.cloud.proit.dev/",
 };
 
 export const expertise = [

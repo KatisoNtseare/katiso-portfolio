@@ -11,19 +11,27 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:check": "node --env-file=.env.local scripts/check-database.mjs",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --conditions=react-server --test tests/auth.test.mjs tests/cloudinary.test.mjs tests/email-service.test.mjs tests/contact-validation.test.mjs tests/media-security.test.mjs",
+    "test:integration": "node --conditions=react-server --test tests/crud-and-publishing.test.mjs tests/e2e-integration.test.mjs",
+    "cloudinary:cleanup": "node --conditions=react-server --env-file-if-exists=.env.local scripts/cleanup-cloudinary.mjs",
+    "email:check": "node --env-file-if-exists=.env.local scripts/check-email.mjs",
+    "email:test": "node --env-file-if-exists=.env.local scripts/test-email.mjs",
+    "db:check": "node --env-file-if-exists=.env.local scripts/check-database.mjs",
     "admin:hash": "node scripts/hash-password.mjs",
-    "db:seed": "node --env-file=.env.local scripts/seed-database.mjs"
+    "db:seed": "node --env-file-if-exists=.env.local scripts/seed-database.mjs"
   },
   "dependencies": {
+    "cloudinary": "^2.11.0",
+    "gsap": "^3.15.1",
     "lucide-react": "^0.468.0",
+    "mongodb": "^7.9.1",
     "next": "^16.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "resend": "^6.0.2",
-    "zod": "^4.1.12",
     "server-only": "^0.0.1",
-    "mongodb": "^7.9.1"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",

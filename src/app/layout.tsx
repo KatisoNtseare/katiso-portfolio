@@ -3,6 +3,7 @@ import { SiteChrome } from "@/components/site-chrome";
 import { site } from "@/lib/site";
 import "./globals.css";
 import "./ui-refinements.css";
+import "./portfolio-design.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),

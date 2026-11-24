@@ -7,9 +7,10 @@ node_modules/
 *.log
 .DS_Store
 coverage/
+*.tsbuildinfo
 
 # Local database / export files
 *.bson
 *.dump
 
-
+.skills
