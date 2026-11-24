@@ -74,8 +74,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
     <section className="media-gallery-section" aria-label="Project media gallery">
       <div className="media-gallery-header">
         <div>
-          <span className="eyebrow">VISUAL SHOWCASE</span>
-          <h2>Media gallery & demonstrations</h2>
+          <h2>Project media and demonstrations</h2>
           <p className="media-gallery-intro">
             High-resolution screenshots, architectural diagrams and embedded video demonstrations for {projectTitle}.
           </p>

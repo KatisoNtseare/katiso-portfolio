@@ -69,13 +69,12 @@ export default async function ProjectDetailPage({ params }: Props) {
         <div className="folio-shell">
           <Link className="case-back" href="/projects"><ArrowLeft size={15} aria-hidden="true" /> All projects</Link>
           <div className="case-heading">
-            <div><span className="folio-kicker">{project.category}</span><h1 className="folio-display">{project.title}</h1><p>{project.summary}</p></div>
-            <dl className="case-meta"><div><dt>Year</dt><dd>{project.year || "Project"}</dd></div><div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div></dl>
+            <div><h1 className="folio-display">{project.title}</h1><p>{project.summary}</p></div>
+            <dl className="case-meta"><div><dt>Category</dt><dd>{project.category}</dd></div><div><dt>Year</dt><dd className="folio-mono">{project.year || "—"}</dd></div><div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div></dl>
           </div>
           <div className="case-visual" style={coverStyle} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? altText : undefined}>
             {isNextImageSource(imageUrl) ? <Image src={imageUrl} alt="" fill priority sizes="(max-width: 700px) 90vw, 100vw" className="case-image" /> : null}
-            {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>{project.category}</span></div> : null}
-            <div className="case-visual-caption"><span>{project.category}</span><span>{project.year || "Engineering case study"}</span></div>
+            {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>Project imagery unavailable</span></div> : null}
           </div>
         </div>
       </section>

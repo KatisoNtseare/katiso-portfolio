@@ -11,8 +11,7 @@ export default function PrivacyPage() {
     <main className="portfolio-page privacy-page">
       <section className="folio-page-hero">
         <div className="folio-shell folio-page-hero-grid">
-          <div><span className="folio-kicker">Privacy information</span>
-          <h1 className="folio-display">Privacy matters.</h1>
+          <div><h1 className="folio-display">Privacy matters.</h1>
           <p>This page explains how information submitted through this portfolio is intended to be handled.</p></div>
         </div>
       </section>

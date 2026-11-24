@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "About", description: "The background
 export default function AboutPage() {
   return (
     <main className="portfolio-page about-page">
-      <section className="folio-page-hero"><div className="folio-shell folio-page-hero-grid"><div><span className="folio-kicker">About Katiso</span><h1 className="folio-display">I like knowing how the whole system works.</h1><p>My work starts with understanding the people, rules and constraints around a problem, then shaping a clear path from requirement to dependable software.</p></div><p className="folio-page-side-note">Software developer<br />Building ProIT Solutions<br />Focused on practical outcomes</p></div></section>
+      <section className="folio-page-hero"><div className="folio-shell folio-page-hero-grid"><div><h1 className="folio-display">I like knowing how the whole system works.</h1><p>My work starts with understanding the people, rules and constraints around a problem, then shaping a clear path from requirement to dependable software.</p></div><p className="folio-page-side-note">Software developer<br />Building ProIT Solutions<br />Focused on practical outcomes</p></div></section>
       <section className="folio-content"><div className="folio-shell about-layout">
         <figure className="about-portrait"><Image src="/images/fullPicture.jpg" alt="Katiso Ntseare" fill sizes="(max-width: 700px) 90vw, 34vw" /></figure>
         <div className="about-copy">
