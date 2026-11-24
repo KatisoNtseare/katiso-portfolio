@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { projectCreateSchema, projectSchema } from "../src/lib/validation.ts";
 import { buildGoogleDriveEmbedUrl, extractGoogleDriveFileId, sortProjectMedia } from "../src/lib/media.ts";
 import { addProjectMedia, removeProjectMedia, reorderProjectMedia, setPrimaryProjectImage } from "../src/lib/project-media.ts";
-import { projectVisibilityFilter, toDocument, toProject } from "../src/lib/db.ts";
+import { claimProjectImageUploads, projectVisibilityFilter, toDocument, toProject } from "../src/lib/db.ts";
 import { cleanupUnreferencedProjectImages } from "../src/lib/asset-cleanup.ts";
 import { ObjectId } from "mongodb";
 
@@ -98,8 +98,30 @@ test("Cloudinary cleanup checks references and persists failed deletions", async
     removeRecord: async (publicId) => { calls.push(`remove:${publicId}`); },
     enqueue: async (publicId) => { calls.push(`queue:${publicId}`); },
   });
-  assert.equal(calls.some((call) => call.includes("still-used")), false, "referenced images are never deleted");
+  assert.equal(calls.includes("delete:katiso-portfolio/project-pictures/still-used"), false, "referenced images are never deleted");
+  assert.equal(calls.includes("remove:katiso-portfolio/project-pictures/still-used"), true, "stale cleanup record is removed for referenced image");
   assert.equal(calls.includes("queue:katiso-portfolio/project-pictures/retry-me"), true);
   assert.equal(calls.includes("remove:katiso-portfolio/project-pictures/removed"), true);
   assert.equal(calls.some((call) => call.includes("untrusted")), false);
+});
+
+test("concurrent upload claims are atomic and return an upload to only one caller", async () => {
+  const publicId = "katiso-portfolio/project-pictures/concurrent-upload";
+  const records = new Map([[publicId, { _id: publicId }]]);
+  const collection = {
+    async findOneAndDelete({ _id }) {
+      const record = records.get(_id);
+      if (!record) return null;
+      records.delete(_id);
+      return record;
+    },
+  };
+
+  const results = await Promise.all([
+    claimProjectImageUploads([publicId, publicId], collection),
+    claimProjectImageUploads([publicId], collection),
+    claimProjectImageUploads([publicId], collection),
+  ]);
+  assert.deepEqual(results.flat(), [publicId]);
+  assert.equal(records.has(publicId), false);
 });

@@ -31,7 +31,12 @@ export async function cleanupUnreferencedProjectImages(
       continue;
     }
     try {
-      if (await dependencies.isReferenced(publicId)) continue;
+      if (await dependencies.isReferenced(publicId)) {
+        // This record was queued while the asset was unused. It is stale now;
+        // remove it so future retries do not keep revisiting a live asset.
+        await dependencies.removeRecord(publicId);
+        continue;
+      }
       if (await dependencies.deleteImage(publicId)) {
         await dependencies.removeRecord(publicId).catch((error) => console.error("Removed asset, but could not clear its cleanup record:", error));
       } else {

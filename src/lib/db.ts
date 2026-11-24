@@ -306,13 +306,19 @@ export async function registerProjectImageUpload(publicId: string): Promise<void
   );
 }
 
-export async function claimProjectImageUploads(publicIds: string[]): Promise<string[]> {
+export async function claimProjectImageUploads(
+  publicIds: string[],
+  collectionOverride?: Pick<Collection<{ _id: string }>, "findOneAndDelete">,
+): Promise<string[]> {
   const ids = [...new Set(publicIds)].filter(Boolean);
   if (!ids.length) return [];
-  const database = await getDatabase();
-  const collection = database.collection<{ _id: string }>("project_image_uploads");
-  const found = await collection.find({ _id: { $in: ids } }, { projection: { _id: 1 } }).toArray();
-  const trustedIds = found.map((item) => item._id);
-  if (trustedIds.length) await collection.deleteMany({ _id: { $in: trustedIds } });
+  const collection = collectionOverride || (await getDatabase()).collection<{ _id: string }>("project_image_uploads");
+  const trustedIds: string[] = [];
+  for (const publicId of ids) {
+    // MongoDB's single-document delete is atomic: only one concurrent caller
+    // can receive and claim a registered upload with this _id.
+    const claimed = await collection.findOneAndDelete({ _id: publicId });
+    if (claimed) trustedIds.push(claimed._id);
+  }
   return trustedIds;
 }

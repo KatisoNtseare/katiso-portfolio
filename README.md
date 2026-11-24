@@ -69,7 +69,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 # Contact Form & Resend Email Delivery
 RESEND_API_KEY=re_your_api_key
 CONTACT_TO_EMAIL=katisontseare@proit.dev
-CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@notify.proit.dev>"
+CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@proit.dev>"
 
 # Optional Integrations
 GITHUB_USERNAME=KatisoNtseare
@@ -120,11 +120,9 @@ Set the generated string as `SESSION_SECRET`.
 
 The portfolio uses [Resend](https://resend.com/) to route contact form submissions to your primary inbox (`katisontseare@proit.dev`).
 
-### Domain Architecture: Preserving Existing Zoho Mail on `proit.dev`
+### Sender domain
 
-Our email architecture uses a dedicated subdomain for transactional sending:
-- **Root Domain (`proit.dev`)**: Hosts your primary business email on Zoho Mail. The root MX, SPF, and DKIM DNS records remain completely untouched.
-- **Subdomain (`notify.proit.dev`)**: Dedicated exclusively to portfolio outbound notifications via Resend. This isolates transactional mail reputation and prevents any DNS record conflicts with Zoho Mail.
+The configured sender is `portfolio@proit.dev`, so add and verify **`proit.dev`** in Resend. The sender address domain must match the domain verified in Resend; do not substitute a different or unverified sender domain.
 
 ### Step 1: Create Resend Account & API Key
 1. Sign up at [resend.com](https://resend.com/).
@@ -135,29 +133,18 @@ Our email architecture uses a dedicated subdomain for transactional sending:
    RESEND_API_KEY=re_your_api_key
    ```
 
-### Step 2: Add & Verify `notify.proit.dev` in Resend
+### Step 2: Add & Verify `proit.dev` in Resend
 1. In the Resend Dashboard, go to **Domains** → **Add Domain**.
-2. Enter the subdomain: `notify.proit.dev`.
-3. Select your region (e.g. Ireland / eu-west-1 or US).
-4. Resend will display DNS records to add:
-   - **DKIM** (TXT records)
-   - **SPF** (TXT record)
-   - **MX** (MX record for `notify.proit.dev`)
-5. In your DNS host (e.g. Cloudflare, Namecheap, GoDaddy), add these records for the host `notify.proit.dev`.
-6. Click **Verify DNS Records** in Resend. Once verified, production emails can be sent from `portfolio@notify.proit.dev`.
+2. Enter `proit.dev` and follow the dashboard's domain verification instructions.
+3. Add the sending-authentication DNS records Resend provides for `proit.dev`.
+4. Preserve the existing Zoho MX records. Do not replace or redirect root-domain MX records as part of sender verification; if the dashboard requests a DNS change that would affect Zoho mail routing, confirm the impact with the domain administrator first.
+5. Click **Verify DNS Records**. Production messages can be sent from `portfolio@proit.dev` after Resend verifies the domain.
 
 ### Step 3: Configure Sender and Recipient
 ```env
 CONTACT_TO_EMAIL=katisontseare@proit.dev
-CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@notify.proit.dev>"
+CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@proit.dev>"
 ```
-
-### Initial Testing Sandbox (`onboarding@resend.dev`)
-Before `notify.proit.dev` DNS verification propagates, Resend provides a sandbox testing sender:
-```env
-CONTACT_FROM_EMAIL="onboarding@resend.dev"
-```
-> **Testing Restriction**: Resend's test sender can **only** deliver to the email address registered on your Resend account. Once `notify.proit.dev` is verified, you can send to any email address.
 
 ### Step 4: Run the Email Diagnostic Check
 Verify your configuration without sending unnecessary emails:
