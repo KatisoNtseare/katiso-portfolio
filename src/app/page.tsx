@@ -17,6 +17,11 @@ export default async function HomePage() {
   const allProjects = await getProjects();
   const featured = allProjects.filter((project) => project.isFeatured).slice(0, 3);
   const projects = featured.length ? featured : allProjects.slice(0, 3);
+  const leadProject = projects[0];
+  const leadImageUrl = leadProject?.coverImage || leadProject?.image?.secureUrl;
+  const leadImageCanOptimize = Boolean(leadImageUrl && (leadImageUrl.startsWith("/") || (() => {
+    try { return new URL(leadImageUrl).hostname === "res.cloudinary.com"; } catch { return false; }
+  })()));
 
   return (
     <main className="portfolio-page home-page">
@@ -25,7 +30,7 @@ export default async function HomePage() {
         <div className="folio-shell home-hero-grid">
           <div className="home-hero-copy">
             <span className="folio-kicker">Software developer · ProIT Solutions</span>
-            <h1 className="folio-display"><span>Katiso Ntseare</span><span>Software for real-world problems.</span></h1>
+            <h1 className="folio-display"><span>Katiso Ntseare</span><span>Software built around real work.</span></h1>
             <p className="home-hero-intro">I design and build web applications, backend services and cloud systems that turn operational needs into dependable software.</p>
             <div className="home-hero-actions">
               <Link className="folio-button" href="/projects">Explore selected work <ArrowRight size={16} aria-hidden="true" /></Link>
@@ -33,10 +38,25 @@ export default async function HomePage() {
             </div>
             <p className="home-availability">Open to meaningful software engineering opportunities</p>
           </div>
-          <figure className="home-portrait">
-            <Image src="/images/halfPicture.jpg" alt="Katiso Ntseare, software developer and founder of ProIT Solutions" fill priority sizes="(max-width: 700px) 90vw, 38vw" />
-            <figcaption className="home-portrait-caption"><strong>Katiso Ntseare</strong><span>Founder, ProIT Solutions</span></figcaption>
-          </figure>
+          <div className="home-hero-visual">
+            <figure className="home-portrait">
+              <Image src="/images/halfPicture.jpg" alt="Katiso Ntseare, software developer and founder of ProIT Solutions" fill priority sizes="(max-width: 700px) 78vw, 38vw" />
+              <figcaption className="home-portrait-caption"><strong>Katiso Ntseare</strong><span>Founder, ProIT Solutions</span></figcaption>
+            </figure>
+            {leadProject ? (
+              <Link className="home-hero-project" href={"/projects/" + leadProject.slug} aria-label={"Explore featured project: " + leadProject.title}>
+                <span className="home-hero-project-image" aria-hidden="true">
+                  {leadImageCanOptimize && leadImageUrl ? <Image src={leadImageUrl} alt="" fill sizes="(max-width: 700px) 34vw, 190px" /> : <span className="home-hero-project-mark">01</span>}
+                </span>
+                <span className="home-hero-project-copy">
+                  <span className="home-hero-project-label"><i /> Selected project</span>
+                  <strong>{leadProject.title}</strong>
+                  <span className="home-hero-project-summary">{leadProject.summary}</span>
+                  <span className="home-hero-project-link">View case study <ArrowUpRight size={15} aria-hidden="true" /></span>
+                </span>
+              </Link>
+            ) : null}
+          </div>
         </div>
       </section>
 
