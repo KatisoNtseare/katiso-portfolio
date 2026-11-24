@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/auth";
 import { createProject, getProjects, isDuplicateKeyError, slugIsTaken } from "@/lib/db";
 import { projectCreateSchema } from "@/lib/validation";
+import { cleanupUploadedImage } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,23 @@ export async function POST(request: Request) {
       publishedAt: parsed.data.isPublished ? (parsed.data.publishedAt || new Date().toISOString()) : undefined,
     };
 
-    const project = await createProject(projectData);
+    let project;
+    try {
+      project = await createProject(projectData);
+    } catch (createError) {
+      // If project creation fails, clean up any newly uploaded images from Cloudinary
+      const imagePublicIds = (parsed.data.media || [])
+        .filter((item) => item.type === "image")
+        .map((img) => img.publicId)
+        .filter(Boolean);
+
+      if (parsed.data.image?.publicId) {
+        imagePublicIds.push(parsed.data.image.publicId);
+      }
+
+      await Promise.allSettled(imagePublicIds.map((pid) => cleanupUploadedImage(pid)));
+      throw createError;
+    }
 
     // Revalidate public portfolio pages
     revalidatePath("/");

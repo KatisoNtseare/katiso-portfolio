@@ -7,6 +7,33 @@ export type ProjectImage = {
   format?: string;
 };
 
+export type ProjectImageMedia = {
+  id: string;
+  type: "image";
+  secureUrl: string;
+  publicId: string;
+  altText: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  displayOrder: number;
+  isPrimary: boolean;
+};
+
+export type ProjectVideoMedia = {
+  id: string;
+  type: "video";
+  provider: "google-drive";
+  fileId: string;
+  originalUrl: string;
+  embedUrl: string;
+  title: string;
+  description?: string;
+  displayOrder: number;
+};
+
+export type ProjectMedia = ProjectImageMedia | ProjectVideoMedia;
+
 export type Project = {
   id: string;
   title: string;
@@ -27,6 +54,7 @@ export type Project = {
   coverImage: string;
   image?: ProjectImage;
   altText?: string;
+  media: ProjectMedia[];
   liveUrl: string;
   demoUrl: string;
   repoUrl: string;

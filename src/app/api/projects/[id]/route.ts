@@ -68,19 +68,25 @@ export async function PUT(request: Request, context: Context) {
       return NextResponse.json({ message: "That project URL slug is already in use." }, { status: 409 });
     }
 
-    // Publication check: require valid cover image
-    const hasCoverImage = Boolean(parsed.data.coverImage?.trim()) || Boolean(parsed.data.image?.secureUrl?.trim());
-    if (parsed.data.isPublished && !hasCoverImage) {
-      return NextResponse.json(
-        { message: "A valid cover image is required before publishing this project." },
-        { status: 400 }
-      );
-    }
+    // Collect existing Cloudinary public IDs
+    const existingPublicIds = new Set<string>();
+    if (existing.image?.publicId) existingPublicIds.add(existing.image.publicId);
+    (existing.media || []).forEach((m) => {
+      if (m.type === "image" && m.publicId) existingPublicIds.add(m.publicId);
+    });
 
-    // Determine if the image has been replaced
-    const oldPublicId = existing.image?.publicId;
-    const newPublicId = parsed.data.image?.publicId;
-    const isImageReplaced = Boolean(newPublicId && oldPublicId && newPublicId !== oldPublicId);
+    // Collect new Cloudinary public IDs
+    const newPublicIds = new Set<string>();
+    if (parsed.data.image?.publicId) newPublicIds.add(parsed.data.image.publicId);
+    (parsed.data.media || []).forEach((m) => {
+      if (m.type === "image" && m.publicId) newPublicIds.add(m.publicId);
+    });
+
+    // Removed images are in existing but not in new
+    const removedPublicIds = Array.from(existingPublicIds).filter((pid) => !newPublicIds.has(pid));
+
+    // Added images are in new but not in existing
+    const newlyAddedPublicIds = Array.from(newPublicIds).filter((pid) => !existingPublicIds.has(pid));
 
     const projectData = {
       ...parsed.data,
@@ -93,9 +99,9 @@ export async function PUT(request: Request, context: Context) {
     try {
       updated = await updateProject(id, projectData);
     } catch (dbError) {
-      // If DB update fails and a new image was uploaded in this operation, clean it up
-      if (isImageReplaced && newPublicId) {
-        await cleanupUploadedImage(newPublicId);
+      // If DB update fails, clean up any new images that were uploaded for this update
+      if (newlyAddedPublicIds.length > 0) {
+        await Promise.allSettled(newlyAddedPublicIds.map((pid) => cleanupUploadedImage(pid)));
       }
       throw dbError;
     }
@@ -104,13 +110,17 @@ export async function PUT(request: Request, context: Context) {
       return NextResponse.json({ message: "Project not found." }, { status: 404 });
     }
 
-    // If DB update succeeded and image was replaced, remove the previous Cloudinary asset
-    if (isImageReplaced && oldPublicId) {
-      try {
-        await deleteProjectImageFromCloudinary(oldPublicId);
-      } catch (cleanupError) {
-        console.warn(`Failed to delete previous Cloudinary asset ${oldPublicId}:`, cleanupError);
-      }
+    // If DB update succeeded, delete removed Cloudinary assets asynchronously
+    if (removedPublicIds.length > 0) {
+      Promise.allSettled(
+        removedPublicIds.map(async (pid) => {
+          try {
+            await deleteProjectImageFromCloudinary(pid);
+          } catch (cleanupError) {
+            console.warn(`Failed to delete removed Cloudinary asset ${pid}:`, cleanupError);
+          }
+        })
+      );
     }
 
     // Revalidate paths
@@ -154,14 +164,23 @@ export async function DELETE(_request: Request, context: Context) {
       return NextResponse.json({ message: "Project not found." }, { status: 404 });
     }
 
-    // Delete associated Cloudinary image
-    const publicIdToDelete = existing.image?.publicId;
-    if (publicIdToDelete) {
-      try {
-        await deleteProjectImageFromCloudinary(publicIdToDelete);
-      } catch (cloudinaryError) {
-        console.warn(`Failed to delete Cloudinary asset ${publicIdToDelete}:`, cloudinaryError);
-      }
+    // Collect all Cloudinary public IDs associated with this project (images only)
+    const publicIdsToDelete = new Set<string>();
+    if (existing.image?.publicId) publicIdsToDelete.add(existing.image.publicId);
+    (existing.media || []).forEach((m) => {
+      if (m.type === "image" && m.publicId) publicIdsToDelete.add(m.publicId);
+    });
+
+    if (publicIdsToDelete.size > 0) {
+      Promise.allSettled(
+        Array.from(publicIdsToDelete).map(async (pid) => {
+          try {
+            await deleteProjectImageFromCloudinary(pid);
+          } catch (cloudinaryError) {
+            console.warn(`Failed to delete Cloudinary asset ${pid}:`, cloudinaryError);
+          }
+        })
+      );
     }
 
     // Revalidate paths

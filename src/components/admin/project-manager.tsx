@@ -4,25 +4,39 @@ import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Check,
   Clock,
   Edit3,
+  ExternalLink,
   Eye,
   EyeOff,
   FileImage,
+  Film,
   FolderKanban,
   Image as ImageIcon,
   LoaderCircle,
   Plus,
   Save,
   Search,
+  Star,
   Trash2,
   Upload,
+  Video,
   X,
 } from "lucide-react";
-import type { Project, ProjectImage } from "@/types/project";
+import type { Project, ProjectImage, ProjectImageMedia, ProjectMedia, ProjectVideoMedia } from "@/types/project";
 import { toSlug } from "@/lib/slug";
+import {
+  buildGoogleDriveEmbedUrl,
+  extractGoogleDriveFileId,
+  getPrimaryImage,
+  MAX_PROJECT_IMAGES,
+  MAX_PROJECT_VIDEOS,
+  normalizeMediaOrder,
+} from "@/lib/media";
 
 type Draft = {
   title: string;
@@ -43,6 +57,7 @@ type Draft = {
   coverImage: string;
   image?: ProjectImage;
   altText: string;
+  media: ProjectMedia[];
   liveUrl: string;
   demoUrl: string;
   repoUrl: string;
@@ -73,6 +88,7 @@ const emptyDraft: Draft = {
   coverImage: "",
   image: undefined,
   altText: "",
+  media: [],
   liveUrl: "",
   demoUrl: "",
   repoUrl: "",
@@ -82,14 +98,36 @@ const emptyDraft: Draft = {
 };
 
 function fromProject(project: Project): Draft {
+  let media: ProjectMedia[] = Array.isArray(project.media) && project.media.length > 0 ? [...project.media] : [];
+
+  if (media.length === 0 && (project.coverImage || project.image?.secureUrl)) {
+    media = [
+      {
+        id: `img-${Date.now()}-legacy`,
+        type: "image",
+        secureUrl: project.coverImage || project.image?.secureUrl || "",
+        publicId: project.image?.publicId || "",
+        altText: project.altText || project.image?.altText || `${project.title} cover image`,
+        width: project.image?.width,
+        height: project.image?.height,
+        format: project.image?.format,
+        displayOrder: 1,
+        isPrimary: true,
+      },
+    ];
+  }
+
+  const primary = getPrimaryImage(media);
+
   return {
     ...project,
     technologies: (project.technologies || []).join(", "),
     architectureFlow: (project.architectureFlow || []).join(" -> "),
     sortOrder: String(project.sortOrder ?? 0),
-    coverImage: project.coverImage || project.image?.secureUrl || "",
-    altText: project.altText || project.image?.altText || "",
+    coverImage: primary?.secureUrl || project.coverImage || project.image?.secureUrl || "",
+    altText: primary?.altText || project.altText || project.image?.altText || "",
     image: project.image,
+    media,
   };
 }
 
@@ -125,6 +163,14 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   const [error, setError] = useState("");
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
+  // Video addition state
+  const [showAddVideo, setShowAddVideo] = useState(false);
+  const [videoUrlInput, setVideoUrlInput] = useState("");
+  const [videoTitleInput, setVideoTitleInput] = useState("");
+  const [videoDescInput, setVideoDescInput] = useState("");
+  const [videoError, setVideoError] = useState("");
+  const [videoPreviewId, setVideoPreviewId] = useState<string | null>(null);
+
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const p of projects) {
@@ -136,7 +182,15 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   const publishedCount = projects.filter((p) => p.isPublished).length;
   const draftCount = projects.length - publishedCount;
   const featuredCount = projects.filter((p) => p.isFeatured).length;
-  const incompleteCount = projects.filter((p) => !p.coverImage && !p.image?.secureUrl).length;
+  const incompleteCount = projects.filter((p) => !p.coverImage && !p.image?.secureUrl && (!p.media || p.media.length === 0)).length;
+
+  const currentImages = useMemo(() => {
+    return (draft.media || []).filter((m): m is ProjectImageMedia => m.type === "image");
+  }, [draft.media]);
+
+  const currentVideos = useMemo(() => {
+    return (draft.media || []).filter((m): m is ProjectVideoMedia => m.type === "video");
+  }, [draft.media]);
 
   const visibleProjects = useMemo(() => {
     const normalisedSearch = search.trim().toLowerCase();
@@ -168,6 +222,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     setNotice("");
     setError("");
     setUploadError("");
+    setShowAddVideo(false);
   }
 
   function openEdit(project: Project) {
@@ -178,6 +233,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     setNotice("");
     setError("");
     setUploadError("");
+    setShowAddVideo(false);
   }
 
   function update<K extends keyof Draft>(field: K, value: Draft[K]) {
@@ -189,16 +245,19 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     setEditingId(null);
     setDraft(emptyDraft);
     setUploadError("");
+    setShowAddVideo(false);
   }
 
   async function handleImageFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Reset file input value so re-selecting same file triggers change
     e.target.value = "";
 
-    // Client-side pre-validation
+    if (currentImages.length >= MAX_PROJECT_IMAGES) {
+      setUploadError(`Maximum image limit reached (${MAX_PROJECT_IMAGES} images max). Remove an image before uploading another.`);
+      return;
+    }
+
     const validMimes = ["image/jpeg", "image/png", "image/webp"];
     if (!validMimes.includes(file.type)) {
       setUploadError("Only JPEG, PNG, and WebP images are supported.");
@@ -216,7 +275,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("altText", draft.altText || `${draft.title || "Project"} cover image`);
+      formData.append("altText", `${draft.title || "Project"} screenshot`);
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -229,19 +288,215 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
         throw new Error(data.message || "Failed to upload image to Cloudinary.");
       }
 
-      setDraft((curr) => ({
-        ...curr,
-        coverImage: data.image!.secureUrl,
-        image: data.image,
-        altText: curr.altText || data.image!.altText || `${curr.title || "Project"} cover image`,
-      }));
+      const isFirstImage = currentImages.length === 0;
+      const newImageItem: ProjectImageMedia = {
+        id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "image",
+        secureUrl: data.image.secureUrl,
+        publicId: data.image.publicId,
+        altText: `${draft.title || "Project"} screenshot`,
+        width: data.image.width,
+        height: data.image.height,
+        format: data.image.format,
+        displayOrder: draft.media.length + 1,
+        isPrimary: isFirstImage,
+      };
 
-      setNotice("Cover image uploaded to Cloudinary successfully.");
+      const updatedMedia = normalizeMediaOrder([...draft.media, newImageItem]);
+
+      setDraft((curr) => {
+        const primary = getPrimaryImage(updatedMedia);
+        return {
+          ...curr,
+          media: updatedMedia,
+          coverImage: primary?.secureUrl || curr.coverImage,
+          altText: primary?.altText || curr.altText,
+          image: primary
+            ? {
+                secureUrl: primary.secureUrl,
+                publicId: primary.publicId,
+                altText: primary.altText,
+                width: primary.width,
+                height: primary.height,
+                format: primary.format,
+              }
+            : curr.image,
+        };
+      });
+
+      setNotice("Image uploaded to Cloudinary successfully.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Failed to upload image.");
     } finally {
       setUploading(false);
     }
+  }
+
+  function handleVideoUrlChange(val: string) {
+    setVideoUrlInput(val);
+    const extractedId = extractGoogleDriveFileId(val);
+    setVideoPreviewId(extractedId);
+    if (val.trim() && !extractedId) {
+      setVideoError("Unrecognised Google Drive URL. Paste a link like https://drive.google.com/file/d/FILE_ID/view?usp=sharing");
+    } else {
+      setVideoError("");
+    }
+  }
+
+  function handleAddVideo() {
+    setVideoError("");
+
+    if (currentVideos.length >= MAX_PROJECT_VIDEOS) {
+      setVideoError(`Maximum video limit reached (${MAX_PROJECT_VIDEOS} videos max).`);
+      return;
+    }
+
+    const fileId = extractGoogleDriveFileId(videoUrlInput);
+    if (!fileId) {
+      setVideoError("Please provide a valid Google Drive file URL.");
+      return;
+    }
+
+    if (!videoTitleInput.trim()) {
+      setVideoError("A video title is required.");
+      return;
+    }
+
+    const newVideoItem: ProjectVideoMedia = {
+      id: `vid-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: "video",
+      provider: "google-drive",
+      fileId,
+      originalUrl: videoUrlInput.trim(),
+      embedUrl: buildGoogleDriveEmbedUrl(fileId),
+      title: videoTitleInput.trim(),
+      description: videoDescInput.trim() || undefined,
+      displayOrder: draft.media.length + 1,
+    };
+
+    const updatedMedia = normalizeMediaOrder([...draft.media, newVideoItem]);
+
+    setDraft((curr) => ({
+      ...curr,
+      media: updatedMedia,
+    }));
+
+    setVideoUrlInput("");
+    setVideoTitleInput("");
+    setVideoDescInput("");
+    setVideoPreviewId(null);
+    setShowAddVideo(false);
+    setNotice("Google Drive video added to project.");
+  }
+
+  function setPrimaryImage(mediaId: string) {
+    const updatedMedia = draft.media.map((item) => {
+      if (item.type === "image") {
+        return {
+          ...item,
+          isPrimary: item.id === mediaId,
+        };
+      }
+      return item;
+    });
+
+    const primary = getPrimaryImage(updatedMedia);
+
+    setDraft((curr) => ({
+      ...curr,
+      media: updatedMedia,
+      coverImage: primary?.secureUrl || curr.coverImage,
+      altText: primary?.altText || curr.altText,
+      image: primary
+        ? {
+            secureUrl: primary.secureUrl,
+            publicId: primary.publicId,
+            altText: primary.altText,
+            width: primary.width,
+            height: primary.height,
+            format: primary.format,
+          }
+        : curr.image,
+    }));
+  }
+
+  function removeMediaItem(mediaId: string) {
+    const remaining = draft.media.filter((item) => item.id !== mediaId);
+    const remainingImages = remaining.filter((m): m is ProjectImageMedia => m.type === "image");
+
+    // If the removed item was primary, designate the first remaining image as primary
+    let hasPrimary = remainingImages.some((img) => img.isPrimary);
+    const updatedMedia = remaining.map((item) => {
+      if (item.type === "image" && !hasPrimary) {
+        hasPrimary = true;
+        return { ...item, isPrimary: true };
+      }
+      return item;
+    });
+
+    const normalized = normalizeMediaOrder(updatedMedia);
+    const primary = getPrimaryImage(normalized);
+
+    setDraft((curr) => ({
+      ...curr,
+      media: normalized,
+      coverImage: primary?.secureUrl || "",
+      altText: primary?.altText || "",
+      image: primary
+        ? {
+            secureUrl: primary.secureUrl,
+            publicId: primary.publicId,
+            altText: primary.altText,
+            width: primary.width,
+            height: primary.height,
+            format: primary.format,
+          }
+        : undefined,
+    }));
+  }
+
+  function moveMediaItem(index: number, direction: "up" | "down") {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= draft.media.length) return;
+
+    const items = [...draft.media];
+    const [moved] = items.splice(index, 1);
+    items.splice(targetIndex, 0, moved);
+
+    const normalized = normalizeMediaOrder(items);
+    setDraft((curr) => ({
+      ...curr,
+      media: normalized,
+    }));
+  }
+
+  function updateImageAlt(mediaId: string, altText: string) {
+    setDraft((curr) => {
+      const updatedMedia = curr.media.map((item) => {
+        if (item.id === mediaId && item.type === "image") {
+          return { ...item, altText };
+        }
+        return item;
+      });
+      const primary = getPrimaryImage(updatedMedia);
+      return {
+        ...curr,
+        media: updatedMedia,
+        altText: primary ? primary.altText : curr.altText,
+      };
+    });
+  }
+
+  function updateVideoFields(mediaId: string, title: string, description?: string) {
+    setDraft((curr) => ({
+      ...curr,
+      media: curr.media.map((item) => {
+        if (item.id === mediaId && item.type === "video") {
+          return { ...item, title, description };
+        }
+        return item;
+      }),
+    }));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -250,8 +505,25 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     setError("");
     setNotice("");
 
+    const images = draft.media.filter((m): m is ProjectImageMedia => m.type === "image");
+    const videos = draft.media.filter((m): m is ProjectVideoMedia => m.type === "video");
+
+    if (images.length > MAX_PROJECT_IMAGES) {
+      setError(`Project cannot have more than ${MAX_PROJECT_IMAGES} images (currently ${images.length}).`);
+      setEditorTab("media");
+      setBusy(false);
+      return;
+    }
+
+    if (videos.length > MAX_PROJECT_VIDEOS) {
+      setError(`Project cannot have more than ${MAX_PROJECT_VIDEOS} videos (currently ${videos.length}).`);
+      setEditorTab("media");
+      setBusy(false);
+      return;
+    }
+
     // Validate cover image requirement
-    const hasImage = Boolean(draft.coverImage?.trim()) || Boolean(draft.image?.secureUrl?.trim());
+    const hasImage = images.length > 0 || Boolean(draft.coverImage?.trim()) || Boolean(draft.image?.secureUrl?.trim());
     if (!editingId && !hasImage) {
       setError("A cover image is required to create a project. Please upload an image under the Media tab.");
       setEditorTab("media");
@@ -259,8 +531,9 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
       return;
     }
 
-    if (draft.isPublished && !hasImage) {
-      setError("A valid cover image is required before publishing this project.");
+    const primaryImage = getPrimaryImage(draft.media);
+    if (draft.isPublished && !primaryImage && !draft.coverImage?.trim()) {
+      setError("A valid primary cover image is required before publishing this project.");
       setEditorTab("media");
       setBusy(false);
       return;
@@ -278,9 +551,19 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
         .map((item) => item.trim())
         .filter(Boolean),
       sortOrder: Number(draft.sortOrder) || 0,
-      image: draft.image,
-      coverImage: draft.coverImage || draft.image?.secureUrl || "",
-      altText: draft.altText.trim(),
+      media: draft.media,
+      image: primaryImage
+        ? {
+            secureUrl: primaryImage.secureUrl,
+            publicId: primaryImage.publicId,
+            altText: primaryImage.altText,
+            width: primaryImage.width,
+            height: primaryImage.height,
+            format: primaryImage.format,
+          }
+        : draft.image,
+      coverImage: primaryImage?.secureUrl || draft.coverImage || draft.image?.secureUrl || "",
+      altText: primaryImage?.altText || draft.altText.trim(),
     };
 
     try {
@@ -321,7 +604,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
       if (!response.ok) throw new Error(result.message || "Could not delete the project.");
 
       setProjects((current) => current.filter((item) => item.id !== project.id));
-      setNotice(`Project “${project.title}” and associated assets were deleted successfully.`);
+      setNotice(`Project “${project.title}” and associated Cloudinary assets were deleted successfully.`);
       setProjectToDelete(null);
       router.refresh();
     } catch (err) {
@@ -332,10 +615,9 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   }
 
   async function togglePublish(project: Project) {
-    // Check if the project lacks a cover image
-    const hasImage = Boolean(project.coverImage?.trim()) || Boolean(project.image?.secureUrl?.trim());
+    const hasImage = Boolean(project.coverImage?.trim()) || Boolean(project.image?.secureUrl?.trim()) || (project.media || []).some(m => m.type === "image");
     if (!project.isPublished && !hasImage) {
-      setError(`Cannot publish “${project.title}”: A cover image is required before publishing. Please edit the project and upload an image to Cloudinary first.`);
+      setError(`Cannot publish “${project.title}”: A cover image is required before publishing. Please edit the project and upload an image first.`);
       return;
     }
 
@@ -356,6 +638,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
         .map((item) => item.trim())
         .filter(Boolean),
       sortOrder: Number(updated.sortOrder) || 0,
+      media: updated.media,
     };
 
     try {
@@ -367,113 +650,86 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
 
       const result = (await response.json()) as { project?: Project; message?: string };
       if (!response.ok || !result.project) {
-        throw new Error(result.message || "Could not update publishing status.");
+        throw new Error(result.message || "Could not update publication status.");
       }
 
       setProjects((current) =>
         current.map((item) => (item.id === project.id ? result.project! : item))
       );
-      setNotice(result.project.isPublished ? `“${project.title}” is now published.` : `“${project.title}” moved back to draft.`);
+      setNotice(
+        result.project.isPublished
+          ? `“${result.project.title}” is now published and visible to the public.`
+          : `“${result.project.title}” has been returned to drafts.`
+      );
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update project.");
+      setError(err instanceof Error ? err.message : "Could not update project status.");
     }
   }
 
   return (
-    <div className="project-manager">
-      <div className="manager-toolbar">
+    <>
+      <section className="manager-toolbar">
         <div>
-          <span className="eyebrow">CONTENT WORKSPACE</span>
-          <h2>Projects</h2>
-          <p>Manage the portfolio projects visitors see. Add and edit projects backed by MongoDB and Cloudinary.</p>
+          <span className="eyebrow">PORTFOLIO CONTROL CENTER</span>
+          <h2>Project Manager</h2>
+          <p>
+            Create, edit, feature and organize your software engineering case studies and project media galleries.
+          </p>
         </div>
-        <button className="button button-primary" onClick={openNew}>
-          <Plus size={17} /> Add project
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={openNew}
+          disabled={busy || uploading}
+        >
+          <Plus size={16} /> New project
         </button>
-      </div>
+      </section>
 
-      <div className="manager-stats">
-        <article className="manager-stat-card">
+      <section className="manager-stats" aria-label="Project statistics">
+        <div className="manager-stat-card">
           <span className="manager-stat-icon">
             <FolderKanban size={17} />
           </span>
           <span className="manager-stat-label">TOTAL PROJECTS</span>
           <strong>{projects.length}</strong>
-          <small>Across your portfolio</small>
-        </article>
-        <article className="manager-stat-card">
+          <small>In database</small>
+        </div>
+        <div className="manager-stat-card">
           <span className="manager-stat-icon manager-stat-icon-green">
             <Eye size={17} />
           </span>
           <span className="manager-stat-label">PUBLISHED</span>
           <strong>{publishedCount}</strong>
-          <small>Visible on public portfolio</small>
-        </article>
-        <article className="manager-stat-card">
+          <small>Publicly visible</small>
+        </div>
+        <div className="manager-stat-card">
           <span className="manager-stat-icon manager-stat-icon-muted">
-            <FileImage size={17} />
+            <EyeOff size={17} />
           </span>
           <span className="manager-stat-label">DRAFTS</span>
           <strong>{draftCount}</strong>
-          <small>{incompleteCount ? `${incompleteCount} missing cover image` : "Ready to review"}</small>
-        </article>
-        <article className="manager-stat-card">
+          <small>Hidden from public</small>
+        </div>
+        <div className="manager-stat-card">
           <span className="manager-stat-icon manager-stat-icon-red">
-            <Edit3 size={17} />
+            <FileImage size={17} />
           </span>
           <span className="manager-stat-label">FEATURED</span>
           <strong>{featuredCount}</strong>
-          <small>Showcased on homepage</small>
-        </article>
-      </div>
+          <small>On homepage</small>
+        </div>
+      </section>
 
       {notice ? (
-        <div className="notice success">
+        <div className="notice success" role="status">
           <Check size={16} /> {notice}
         </div>
       ) : null}
       {error ? (
-        <div className="notice error">
-          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      {/* Delete Confirmation Dialog */}
-      {projectToDelete ? (
-        <div className="admin-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
-          <div className="admin-confirm-dialog">
-            <div className="admin-confirm-icon">
-              <Trash2 size={24} />
-            </div>
-            <h3 id="delete-dialog-title">Delete Project</h3>
-            <p>
-              Are you sure you want to permanently delete <strong>“{projectToDelete.title}”</strong>?
-            </p>
-            <p className="admin-confirm-sub">
-              This will remove the project document from MongoDB and permanently delete its associated image from Cloudinary under <code>katiso-portfolio/project-pictures</code>. This action cannot be undone.
-            </p>
-            <div className="admin-confirm-actions">
-              <button
-                type="button"
-                className="button button-ghost"
-                onClick={() => setProjectToDelete(null)}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="button button-primary"
-                style={{ backgroundColor: "#b91f27", borderColor: "#b91f27" }}
-                onClick={() => executeDelete(projectToDelete)}
-                disabled={busy}
-              >
-                {busy ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />} Delete Permanently
-              </button>
-            </div>
-          </div>
+        <div className="notice error" role="alert">
+          <AlertTriangle size={16} /> {error}
         </div>
       ) : null}
 
@@ -481,16 +737,23 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
         <form className="project-editor" onSubmit={submit}>
           <div className="editor-heading">
             <div>
-              <span className="eyebrow">{editingId ? "UPDATE ENTRY" : "NEW ENTRY"}</span>
-              <h3>{editingId ? `Edit: ${draft.title || "Project"}` : "Create a new project"}</h3>
-              <p>Fill out the project details. A cover image stored in Cloudinary is required.</p>
+              <span className="eyebrow">
+                {editingId ? "EDITING PROJECT" : "NEW PORTFOLIO ENTRY"}
+              </span>
+              <h3>{draft.title || (editingId ? "Edit project" : "Draft project")}</h3>
+              <p>Fill out the project details, engineering story and media assets.</p>
             </div>
-            <button type="button" className="icon-button" onClick={closeForm} aria-label="Close editor">
-              <X size={19} />
+            <button
+              type="button"
+              className="icon-button"
+              onClick={closeForm}
+              aria-label="Close form"
+            >
+              <X size={16} />
             </button>
           </div>
 
-          <div className="editor-tabs" role="group" aria-label="Project editor sections">
+          <div className="editor-tabs" role="tablist">
             <button
               type="button"
               aria-pressed={editorTab === "overview"}
@@ -513,7 +776,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
               className={editorTab === "media" ? "active" : ""}
               onClick={() => setEditorTab("media")}
             >
-              <span>03</span> Media & links
+              <span>03</span> Media & links ({draft.media.length})
             </button>
           </div>
 
@@ -686,12 +949,25 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
           {editorTab === "media" ? (
             <div className="editor-panel">
               <div className="editor-section-heading">
-                <span>COVER IMAGE & PROJECT DESTINATIONS</span>
-                <p>Every project requires a cover image stored in Cloudinary under <code>katiso-portfolio/project-pictures</code>.</p>
+                <span>PROJECT MEDIA GALLERY & LINKS</span>
+                <p>Manage up to 20 images on Cloudinary and up to 5 embedded Google Drive videos. Exactly 1 primary image is required to publish.</p>
               </div>
 
-              {/* Cloudinary Image Upload Section */}
-              <div className="editor-image-section">
+              {/* Media Quota Indicators */}
+              <div className="media-quota-bar">
+                <div className={`media-quota-badge ${currentImages.length >= MAX_PROJECT_IMAGES ? "at-limit" : ""}`}>
+                  <ImageIcon size={14} /> Images: <strong>{currentImages.length} / {MAX_PROJECT_IMAGES}</strong>
+                </div>
+                <div className={`media-quota-badge ${currentVideos.length >= MAX_PROJECT_VIDEOS ? "at-limit" : ""}`}>
+                  <Video size={14} /> Videos: <strong>{currentVideos.length} / {MAX_PROJECT_VIDEOS}</strong>
+                </div>
+                <div className="media-quota-badge primary-status">
+                  <Star size={14} color="#df3035" /> Primary image: <strong>{getPrimaryImage(draft.media)?.altText ? "Selected" : currentImages.length > 0 ? "Default selected" : "None"}</strong>
+                </div>
+              </div>
+
+              {/* Action Toolbar for Media */}
+              <div className="media-actions-bar">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -699,84 +975,307 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
                   style={{ display: "none" }}
                   onChange={handleImageFileChange}
                 />
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || busy || currentImages.length >= MAX_PROJECT_IMAGES}
+                >
+                  {uploading ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}
+                  Upload Cloudinary picture ({currentImages.length}/{MAX_PROJECT_IMAGES})
+                </button>
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  onClick={() => setShowAddVideo(!showAddVideo)}
+                  disabled={currentVideos.length >= MAX_PROJECT_VIDEOS}
+                >
+                  <Plus size={14} /> Add Google Drive video ({currentVideos.length}/{MAX_PROJECT_VIDEOS})
+                </button>
+              </div>
 
-                <div className="editor-image-header">
-                  <div>
-                    <strong>Cover Image *</strong>
-                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "#777" }}>
-                      Upload a JPEG, PNG, or WebP picture (max 5 MB). It will be saved to Cloudinary.
-                    </p>
+              {uploadError ? <div className="notice error">{uploadError}</div> : null}
+
+              {/* Inline Add Video Form */}
+              {showAddVideo ? (
+                <div className="admin-video-adder-card">
+                  <div className="admin-video-adder-header">
+                    <h4>Add Google Drive Video</h4>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => setShowAddVideo(false)}
+                      aria-label="Cancel adding video"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="button button-secondary button-small"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || busy}
-                  >
-                    {uploading ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}
-                    {draft.coverImage ? "Replace image" : "Upload picture"}
-                  </button>
+                  <p className="admin-video-note">
+                    Share links from Google Drive (e.g. <code>https://drive.google.com/file/d/FILE_ID/view?usp=sharing</code>).
+                    Important: Set Google Drive link permissions to <strong>“Anyone with the link can view”</strong> so your portfolio visitors can view the video.
+                  </p>
+
+                  {videoError ? <div className="notice error" style={{ margin: "8px 0" }}>{videoError}</div> : null}
+
+                  <div className="editor-grid">
+                    <label className="span-2">
+                      Google Drive sharing link *
+                      <input
+                        type="url"
+                        value={videoUrlInput}
+                        onChange={(e) => handleVideoUrlChange(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/1a2b3c4d5e.../view?usp=sharing"
+                      />
+                    </label>
+                    <label>
+                      Video title *
+                      <input
+                        maxLength={200}
+                        value={videoTitleInput}
+                        onChange={(e) => setVideoTitleInput(e.target.value)}
+                        placeholder="e.g. System Demonstration & Workflow Walkthrough"
+                      />
+                    </label>
+                    <label>
+                      Description / notes (optional)
+                      <input
+                        maxLength={2000}
+                        value={videoDescInput}
+                        onChange={(e) => setVideoDescInput(e.target.value)}
+                        placeholder="Key features showcased in this video"
+                      />
+                    </label>
+                  </div>
+
+                  {videoPreviewId ? (
+                    <div className="admin-video-preview-box">
+                      <span className="admin-video-preview-label">Live Google Drive Embed Preview:</span>
+                      <div className="admin-video-preview-iframe-wrap">
+                        <iframe
+                          src={buildGoogleDriveEmbedUrl(videoPreviewId)}
+                          title="Embed Preview"
+                          className="admin-video-preview-iframe"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+                    <button
+                      type="button"
+                      className="button button-primary button-small"
+                      onClick={handleAddVideo}
+                      disabled={!videoPreviewId || !videoTitleInput.trim()}
+                    >
+                      <Plus size={14} /> Add to project media
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-ghost button-small"
+                      onClick={() => setShowAddVideo(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Media Collection List */}
+              <div className="media-collection-list">
+                <div className="media-collection-header">
+                  <strong>Configured project media ({draft.media.length})</strong>
+                  <small>Ordered by display sequence. The item marked Primary will appear as the case study hero snapshot.</small>
                 </div>
 
-                {uploadError ? <div className="notice error">{uploadError}</div> : null}
-
-                {draft.coverImage ? (
-                  <div className="editor-image-preview-card">
-                    <div
-                      className="editor-image-preview-thumb"
-                      style={{ backgroundImage: `url("${draft.coverImage}")` }}
-                    />
-                    <div className="editor-image-preview-details">
-                      <div className="editor-image-meta-badge">
-                        <Check size={13} color="#24a36b" /> Stored in Cloudinary
-                      </div>
-                      <span className="editor-image-public-id">
-                        {draft.image?.publicId || "katiso-portfolio/project-pictures"}
-                      </span>
-                      {draft.image?.width && draft.image?.height ? (
-                        <small className="editor-image-dims">
-                          {draft.image.width} × {draft.image.height} px · {draft.image.format?.toUpperCase() || "IMAGE"}
-                        </small>
-                      ) : null}
+                {draft.media.length === 0 ? (
+                  <div className="editor-image-dropzone" onClick={() => fileInputRef.current?.click()}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                      <ImageIcon size={28} color="#999" />
+                      <strong>No media added yet</strong>
+                      <small style={{ color: "#888" }}>Upload an image (up to 20) or add a Google Drive video (up to 5)</small>
                     </div>
                   </div>
                 ) : (
-                  <div
-                    className="editor-image-dropzone"
-                    onClick={() => fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    {uploading ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                        <LoaderCircle className="spin" size={24} color="#df3035" />
-                        <span>Uploading to Cloudinary...</span>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                        <ImageIcon size={28} color="#999" />
-                        <strong>Click to select a project picture</strong>
-                        <small style={{ color: "#888" }}>JPEG, PNG, or WebP up to 5 MB</small>
-                      </div>
-                    )}
+                  <div className="media-items-grid">
+                    {draft.media.map((item, idx) => {
+                      if (item.type === "image") {
+                        return (
+                          <div key={item.id} className={`media-item-card ${item.isPrimary ? "is-primary-card" : ""}`}>
+                            <div className="media-item-thumb-col">
+                              <div
+                                className="media-item-thumb"
+                                style={{ backgroundImage: `url("${item.secureUrl}")` }}
+                              />
+                              <div className="media-item-order-controls">
+                                <button
+                                  type="button"
+                                  className="media-order-btn"
+                                  onClick={() => moveMediaItem(idx, "up")}
+                                  disabled={idx === 0}
+                                  title="Move up"
+                                >
+                                  <ArrowUp size={12} />
+                                </button>
+                                <span className="media-order-num">#{item.displayOrder}</span>
+                                <button
+                                  type="button"
+                                  className="media-order-btn"
+                                  onClick={() => moveMediaItem(idx, "down")}
+                                  disabled={idx === draft.media.length - 1}
+                                  title="Move down"
+                                >
+                                  <ArrowDown size={12} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="media-item-body">
+                              <div className="media-item-top">
+                                <div className="media-type-badges">
+                                  <span className="badge-media-type image">IMAGE</span>
+                                  {item.isPrimary ? (
+                                    <span className="badge-primary-image">
+                                      <Star size={11} fill="#df3035" /> Primary Cover Image
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="button-make-primary"
+                                      onClick={() => setPrimaryImage(item.id)}
+                                    >
+                                      Set as primary
+                                    </button>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="media-remove-btn"
+                                  onClick={() => removeMediaItem(item.id)}
+                                  title="Remove image"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+
+                              <label className="media-alt-label">
+                                Alternative text (Alt text)
+                                <input
+                                  type="text"
+                                  value={item.altText}
+                                  onChange={(e) => updateImageAlt(item.id, e.target.value)}
+                                  placeholder="Describe the image content for accessibility"
+                                />
+                              </label>
+
+                              <div className="media-item-meta">
+                                <span className="meta-public-id" title={item.publicId}>
+                                  Cloudinary: {item.publicId}
+                                </span>
+                                {item.width && item.height ? (
+                                  <span className="meta-dims">
+                                    {item.width} × {item.height} px · {item.format?.toUpperCase() || "IMG"}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (item.type === "video") {
+                        return (
+                          <div key={item.id} className="media-item-card video-card">
+                            <div className="media-item-thumb-col">
+                              <div className="media-video-thumb-icon">
+                                <Film size={26} color="#d92f36" />
+                              </div>
+                              <div className="media-item-order-controls">
+                                <button
+                                  type="button"
+                                  className="media-order-btn"
+                                  onClick={() => moveMediaItem(idx, "up")}
+                                  disabled={idx === 0}
+                                  title="Move up"
+                                >
+                                  <ArrowUp size={12} />
+                                </button>
+                                <span className="media-order-num">#{item.displayOrder}</span>
+                                <button
+                                  type="button"
+                                  className="media-order-btn"
+                                  onClick={() => moveMediaItem(idx, "down")}
+                                  disabled={idx === draft.media.length - 1}
+                                  title="Move down"
+                                >
+                                  <ArrowDown size={12} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="media-item-body">
+                              <div className="media-item-top">
+                                <div className="media-type-badges">
+                                  <span className="badge-media-type video">GOOGLE DRIVE VIDEO</span>
+                                  <span className="badge-video-embed">
+                                    <Check size={11} color="#24a36b" /> Embed Validated
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="media-remove-btn"
+                                  onClick={() => removeMediaItem(item.id)}
+                                  title="Remove video"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+
+                              <div className="media-video-edit-grid">
+                                <label>
+                                  Video title
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) => updateVideoFields(item.id, e.target.value, item.description)}
+                                    placeholder="Video title"
+                                  />
+                                </label>
+                                <label>
+                                  Description (optional)
+                                  <input
+                                    type="text"
+                                    value={item.description || ""}
+                                    onChange={(e) => updateVideoFields(item.id, item.title, e.target.value)}
+                                    placeholder="Brief description"
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="media-item-meta">
+                                <a
+                                  href={item.originalUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="meta-link"
+                                >
+                                  Drive Link <ExternalLink size={11} />
+                                </a>
+                                <span className="meta-file-id">File ID: {item.fileId}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
                   </div>
                 )}
-
-                <div style={{ marginTop: 14 }}>
-                  <label>
-                    Image alternative text (Alt text)
-                    <input
-                      maxLength={300}
-                      value={draft.altText}
-                      onChange={(event) => update("altText", event.target.value)}
-                      placeholder="e.g. Screenshot of ManorManager dashboard showing occupancy rates"
-                    />
-                    <small>Describes the image for screen readers and accessibility.</small>
-                  </label>
-                </div>
               </div>
 
-              <div className="editor-grid" style={{ marginTop: 20 }}>
+              {/* Links section */}
+              <div className="editor-grid" style={{ marginTop: 24 }}>
                 <label>
                   Live application URL
                   <input
@@ -837,7 +1336,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
                   />
                   <span>
                     <strong>Publish publicly</strong>
-                    <small>Make visible to visitors. Requires a cover image.</small>
+                    <small>Make visible to visitors. Requires exactly one primary image.</small>
                   </span>
                 </label>
               </div>
@@ -901,119 +1400,170 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
                 ))}
               </select>
             ) : null}
-            <div className="manager-search">
-              <Search size={16} />
+            <label className="manager-search">
+              <Search size={15} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search projects"
-                aria-label="Search projects"
+                placeholder="Search projects..."
               />
-            </div>
+            </label>
           </div>
         </div>
 
-        <div className="manager-filters" role="group" aria-label="Filter projects">
-          {(["all", "published", "drafts", "featured"] as ProjectFilter[]).map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={filter === item ? "active" : ""}
-              onClick={() => setFilter(item)}
-            >
-              {item === "all"
-                ? "All projects"
-                : item === "drafts"
-                ? "Drafts"
-                : item === "featured"
-                ? "Featured"
-                : "Published"}
-              <span>
-                {item === "all"
-                  ? projects.length
-                  : item === "published"
-                  ? publishedCount
-                  : item === "drafts"
-                  ? draftCount
-                  : featuredCount}
-              </span>
-            </button>
-          ))}
+        <div className="manager-filters">
+          <button
+            type="button"
+            className={filter === "all" ? "active" : ""}
+            onClick={() => setFilter("all")}
+          >
+            All <span>{projects.length}</span>
+          </button>
+          <button
+            type="button"
+            className={filter === "published" ? "active" : ""}
+            onClick={() => setFilter("published")}
+          >
+            Published <span>{publishedCount}</span>
+          </button>
+          <button
+            type="button"
+            className={filter === "drafts" ? "active" : ""}
+            onClick={() => setFilter("drafts")}
+          >
+            Drafts <span>{draftCount}</span>
+          </button>
+          <button
+            type="button"
+            className={filter === "featured" ? "active" : ""}
+            onClick={() => setFilter("featured")}
+          >
+            Featured <span>{featuredCount}</span>
+          </button>
         </div>
 
-        <div className="admin-project-list">
-          {visibleProjects.length === 0 ? (
-            <div className="empty-state">
-              {projects.length
-                ? "No projects match this search or filter."
-                : "No projects yet. Click 'Add project' to create your first portfolio entry."}
-            </div>
-          ) : (
-            visibleProjects.map((project) => {
-              const hasCover = Boolean(project.coverImage || project.image?.secureUrl);
+        {visibleProjects.length ? (
+          <div className="admin-project-list">
+            {visibleProjects.map((project) => {
+              const coverUrl = project.coverImage || project.image?.secureUrl;
+              const hasNoImage = !coverUrl;
+
               return (
-                <article className="admin-project-row" key={project.id}>
+                <article key={project.id} className="admin-project-row">
                   <div
                     className="admin-project-thumb"
-                    style={hasCover ? { backgroundImage: `url("${project.coverImage || project.image?.secureUrl}")` } : undefined}
+                    style={coverUrl ? { backgroundImage: `url("${coverUrl}")` } : undefined}
                   >
-                    {!hasCover ? <FolderKanban size={19} /> : null}
+                    <FolderKanban size={20} />
                   </div>
                   <div className="admin-project-main">
                     <div className="admin-project-title">
                       <h3>{project.title}</h3>
-                      <span className={`publish-pill ${project.isPublished ? "published" : "draft"}`}>
-                        {project.isPublished ? "Published" : "Draft"}
-                      </span>
-                      {!hasCover ? (
-                        <span className="publish-pill incomplete" title="A cover image must be uploaded before publishing">
-                          Missing image
+                      {project.isPublished ? (
+                        <span className="publish-pill">Published</span>
+                      ) : (
+                        <span className="publish-pill draft">Draft</span>
+                      )}
+                      {project.isFeatured ? (
+                        <span className="feature-pill">Featured</span>
+                      ) : null}
+                      {hasNoImage ? (
+                        <span className="feature-pill" style={{ background: "#fee2e2", color: "#b91f27", borderColor: "#fca5a5" }}>
+                          Missing Image
                         </span>
                       ) : null}
-                      {project.isFeatured ? <span className="feature-pill">Featured</span> : null}
+                      {project.media && project.media.length > 0 ? (
+                        <span className="admin-project-category" style={{ background: "#edf6f0", color: "#167a50" }}>
+                          {project.media.length} media
+                        </span>
+                      ) : null}
                     </div>
                     <p>{project.summary}</p>
                     <div className="admin-project-meta">
                       <span className="admin-project-slug">/projects/{project.slug}</span>
-                      <span className="admin-project-category">{project.category}</span>
+                      {project.category ? (
+                        <span className="admin-project-category">{project.category}</span>
+                      ) : null}
                       <span className="admin-project-timestamp">
-                        <Clock size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+                        <Clock size={11} style={{ verticalAlign: "middle", marginRight: 3 }} />
                         Updated {formatDate(project.updatedAt)}
                       </span>
                     </div>
                   </div>
                   <div className="admin-project-actions">
                     <button
+                      type="button"
                       className="icon-button"
+                      title={project.isPublished ? "Unpublish to draft" : "Publish to live site"}
                       onClick={() => togglePublish(project)}
-                      title={project.isPublished ? "Unpublish project" : "Publish project"}
-                      aria-label={project.isPublished ? "Unpublish project" : "Publish project"}
+                      disabled={busy}
                     >
-                      {project.isPublished ? <EyeOff size={17} /> : <Eye size={17} />}
+                      {project.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                     <button
+                      type="button"
                       className="icon-button"
-                      onClick={() => openEdit(project)}
                       title="Edit project"
-                      aria-label="Edit project"
+                      onClick={() => openEdit(project)}
+                      disabled={busy}
                     >
-                      <Edit3 size={17} />
+                      <Edit3 size={16} />
                     </button>
                     <button
+                      type="button"
                       className="icon-button danger-icon"
-                      onClick={() => setProjectToDelete(project)}
                       title="Delete project"
-                      aria-label="Delete project"
+                      onClick={() => setProjectToDelete(project)}
+                      disabled={busy}
                     >
-                      <Trash2 size={17} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </article>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">
+            No projects found matching the selected filters.
+          </div>
+        )}
       </section>
-    </div>
+
+      {/* Delete Confirmation Modal */}
+      {projectToDelete ? (
+        <div className="admin-confirm-overlay" role="dialog" aria-modal="true">
+          <div className="admin-confirm-dialog">
+            <div className="admin-confirm-icon">
+              <Trash2 size={24} />
+            </div>
+            <h3>Delete “{projectToDelete.title}”?</h3>
+            <p>
+              This will permanently remove the project from MongoDB and delete any associated Cloudinary image assets.
+            </p>
+            <p className="admin-confirm-sub">This action cannot be undone.</p>
+            <div className="admin-confirm-actions">
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => setProjectToDelete(null)}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button button-primary danger-btn"
+                onClick={() => executeDelete(projectToDelete)}
+                disabled={busy}
+              >
+                {busy ? <LoaderCircle className="spin" size={15} /> : <Trash2 size={15} />}
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

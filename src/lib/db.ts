@@ -1,6 +1,7 @@
 import "server-only";
 import { MongoClient, ObjectId, type Collection, type Db, type Document } from "mongodb";
-import type { Project, ProjectImage, ProjectInput } from "@/types/project";
+import type { Project, ProjectImage, ProjectInput, ProjectMedia } from "@/types/project";
+import { getPrimaryImage } from "@/lib/media";
 
 export type ProjectDocument = {
   _id: ObjectId;
@@ -22,6 +23,7 @@ export type ProjectDocument = {
   coverImage: string;
   image?: ProjectImage;
   altText?: string;
+  media?: ProjectMedia[];
   liveUrl: string;
   demoUrl: string;
   repoUrl: string;
@@ -89,23 +91,75 @@ export async function getProjectsCollection(): Promise<Collection<ProjectDocumen
 
 function toProject(document: ProjectDocument): Project {
   const { _id, ...project } = document;
+
+  let media: ProjectMedia[] = Array.isArray(project.media) ? [...project.media] : [];
+
+  // Synthesize default media item from legacy coverImage / image if media is empty
+  if (media.length === 0 && (project.coverImage || project.image?.secureUrl)) {
+    media = [
+      {
+        id: "media-default-1",
+        type: "image",
+        secureUrl: project.coverImage || project.image?.secureUrl || "",
+        publicId: project.image?.publicId || "",
+        altText: project.altText || project.image?.altText || `${project.title} cover image`,
+        width: project.image?.width,
+        height: project.image?.height,
+        format: project.image?.format,
+        displayOrder: 1,
+        isPrimary: true,
+      },
+    ];
+  }
+
+  // Ensure there's a primary image if images exist
+  const primary = getPrimaryImage(media);
+  const coverImage = primary?.secureUrl || project.coverImage || project.image?.secureUrl || "";
+  const altText = primary?.altText || project.altText || project.image?.altText || "";
+  const image: ProjectImage | undefined = primary
+    ? {
+        secureUrl: primary.secureUrl,
+        publicId: primary.publicId,
+        altText: primary.altText,
+        width: primary.width,
+        height: primary.height,
+        format: primary.format,
+      }
+    : project.image;
+
   return {
     ...project,
     id: _id.toHexString(),
-    coverImage: project.coverImage || project.image?.secureUrl || "",
-    altText: project.altText || project.image?.altText || "",
-    image: project.image,
+    coverImage,
+    altText,
+    image,
+    media,
   };
 }
 
 function toDocument(input: ProjectInput, timestamps: { createdAt: string; updatedAt: string }): Omit<ProjectDocument, "_id"> {
-  const coverImage = input.coverImage || input.image?.secureUrl || "";
-  const altText = input.altText || input.image?.altText || "";
+  const media = Array.isArray(input.media) ? [...input.media] : [];
+  const primary = getPrimaryImage(media);
+
+  const coverImage = primary?.secureUrl || input.coverImage || input.image?.secureUrl || "";
+  const altText = primary?.altText || input.altText || input.image?.altText || "";
+  const image: ProjectImage | undefined = primary
+    ? {
+        secureUrl: primary.secureUrl,
+        publicId: primary.publicId,
+        altText: primary.altText,
+        width: primary.width,
+        height: primary.height,
+        format: primary.format,
+      }
+    : input.image;
+
   return {
     ...input,
     coverImage,
     altText,
-    image: input.image,
+    image,
+    media,
     ...timestamps,
   };
 }
@@ -124,60 +178,62 @@ export async function getProjects(includeDrafts = false): Promise<Project[]> {
   return documents.map(toProject);
 }
 
-export async function getProjectBySlug(slug: string, includeDrafts = false): Promise<Project | undefined> {
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
   const collection = await getProjectsCollection();
-  const filter = includeDrafts ? { slug } : { slug, isPublished: true };
-  const document = await collection.findOne(filter);
-  return document ? toProject(document) : undefined;
+  const document = await collection.findOne({ slug: slug.toLowerCase() });
+  return document ? toProject(document) : null;
 }
 
-export async function getProjectById(id: string): Promise<Project | undefined> {
-  if (!ObjectId.isValid(id)) return undefined;
+export async function getProjectById(id: string): Promise<Project | null> {
+  if (!ObjectId.isValid(id)) return null;
   const collection = await getProjectsCollection();
   const document = await collection.findOne({ _id: new ObjectId(id) });
-  return document ? toProject(document) : undefined;
+  return document ? toProject(document) : null;
 }
 
-export async function slugIsTaken(slug: string, exceptId?: string): Promise<boolean> {
+export async function slugIsTaken(slug: string, currentId?: string): Promise<boolean> {
   const collection = await getProjectsCollection();
-  const filter = exceptId && ObjectId.isValid(exceptId)
-    ? { slug, _id: { $ne: new ObjectId(exceptId) } }
-    : { slug };
-  return Boolean(await collection.findOne(filter, { projection: { _id: 1 } }));
+  const filter: Record<string, unknown> = { slug: slug.toLowerCase() };
+  if (currentId && ObjectId.isValid(currentId)) {
+    filter._id = { $ne: new ObjectId(currentId) };
+  }
+  const match = await collection.findOne(filter, { projection: { _id: 1 } });
+  return Boolean(match);
 }
 
 export async function createProject(input: ProjectInput): Promise<Project> {
   const collection = await getProjectsCollection();
   const now = new Date().toISOString();
   const docData = toDocument(input, { createdAt: now, updatedAt: now });
-  const document = {
-    ...docData,
-    _id: new ObjectId(),
-  } as ProjectDocument;
-  await collection.insertOne(document);
-  return toProject(document);
-}
-
-export async function updateProject(id: string, input: ProjectInput): Promise<Project | undefined> {
-  if (!ObjectId.isValid(id)) return undefined;
-  const collection = await getProjectsCollection();
-  const objectId = new ObjectId(id);
-  const now = new Date().toISOString();
-  const updateData: Partial<ProjectDocument> = {
+  const result = await collection.insertOne(docData as ProjectDocument);
+  return {
     ...input,
-    coverImage: input.coverImage || input.image?.secureUrl || "",
-    altText: input.altText || input.image?.altText || "",
+    coverImage: docData.coverImage,
+    altText: docData.altText,
+    image: docData.image,
+    media: docData.media || [],
+    id: result.insertedId.toHexString(),
+    createdAt: now,
     updatedAt: now,
   };
-  if (input.isPublished && !input.publishedAt) {
-    updateData.publishedAt = now;
-  }
-  const result = await collection.updateOne(
-    { _id: objectId },
-    { $set: updateData },
+}
+
+export async function updateProject(id: string, input: ProjectInput): Promise<Project | null> {
+  if (!ObjectId.isValid(id)) return null;
+  const collection = await getProjectsCollection();
+  const existing = await collection.findOne({ _id: new ObjectId(id) });
+  if (!existing) return null;
+
+  const now = new Date().toISOString();
+  const docData = toDocument(input, { createdAt: existing.createdAt, updatedAt: now });
+
+  const result = await collection.findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: docData },
+    { returnDocument: "after" }
   );
-  if (result.matchedCount === 0) return undefined;
-  return getProjectById(id);
+
+  return result ? toProject(result) : null;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {

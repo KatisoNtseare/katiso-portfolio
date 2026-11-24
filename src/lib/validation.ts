@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { extractGoogleDriveFileId, buildGoogleDriveEmbedUrl, MAX_PROJECT_IMAGES, MAX_PROJECT_VIDEOS } from "@/lib/media";
 
 const optionalUrl = z.string().trim().max(1000).refine((value) => {
   if (!value) return true;
@@ -17,6 +18,57 @@ export const projectImageSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   format: z.string().max(20).optional(),
+});
+
+export const projectImageMediaSchema = z.object({
+  id: z.string().trim().min(1, "Media ID is required."),
+  type: z.literal("image"),
+  secureUrl: z.string().url("A valid secure image URL is required."),
+  publicId: z.string().trim().min(1, "A Cloudinary public ID is required."),
+  altText: z.string().trim().max(300).default(""),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  format: z.string().max(20).optional(),
+  displayOrder: z.number().int().min(0).max(10000).default(0),
+  isPrimary: z.boolean().default(false),
+});
+
+export const projectVideoMediaSchema = z.object({
+  id: z.string().trim().min(1, "Media ID is required."),
+  type: z.literal("video"),
+  provider: z.literal("google-drive"),
+  fileId: z.string().trim().min(15, "A valid Google Drive file ID is required."),
+  originalUrl: z.string().url("A valid Google Drive URL is required."),
+  embedUrl: z.string().url("A valid embed URL is required."),
+  title: z.string().trim().min(1, "Video title is required.").max(200),
+  description: z.string().trim().max(2000).optional().default(""),
+  displayOrder: z.number().int().min(0).max(10000).default(0),
+});
+
+export const projectMediaSchema = z.discriminatedUnion("type", [
+  projectImageMediaSchema,
+  projectVideoMediaSchema,
+]);
+
+export const googleDriveVideoInputSchema = z.object({
+  url: z.string().trim().min(1, "Google Drive URL is required.").refine((val) => {
+    return extractGoogleDriveFileId(val) !== null;
+  }, "Please provide a valid Google Drive file sharing link (e.g. https://drive.google.com/file/d/FILE_ID/view?usp=sharing)."),
+  title: z.string().trim().min(1, "Video title is required.").max(200),
+  description: z.string().trim().max(2000).optional().default(""),
+  displayOrder: z.number().int().min(0).max(10000).default(0),
+}).transform((data) => {
+  const fileId = extractGoogleDriveFileId(data.url)!;
+  return {
+    type: "video" as const,
+    provider: "google-drive" as const,
+    fileId,
+    originalUrl: data.url,
+    embedUrl: buildGoogleDriveEmbedUrl(fileId),
+    title: data.title,
+    description: data.description || "",
+    displayOrder: data.displayOrder,
+  };
 });
 
 export const projectSchema = z.object({
@@ -38,6 +90,7 @@ export const projectSchema = z.object({
   coverImage: optionalUrl.default(""),
   image: projectImageSchema.optional(),
   altText: z.string().trim().max(300).default(""),
+  media: z.array(projectMediaSchema).default([]),
   liveUrl: optionalUrl.default(""),
   demoUrl: optionalUrl.default(""),
   repoUrl: optionalUrl.default(""),
@@ -46,24 +99,63 @@ export const projectSchema = z.object({
   publishedAt: z.string().optional(),
   sortOrder: z.number().int().min(0).max(10000).default(0),
 }).superRefine((data, ctx) => {
-  // If published, a valid cover image is strictly required
-  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim());
-  if (data.isPublished && !hasCoverImage) {
+  const images = (data.media || []).filter((item) => item.type === "image");
+  const videos = (data.media || []).filter((item) => item.type === "video");
+
+  if (images.length > MAX_PROJECT_IMAGES) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "A valid cover image is required before publishing a project.",
-      path: ["coverImage"],
+      message: `A project cannot have more than ${MAX_PROJECT_IMAGES} images (received ${images.length}).`,
+      path: ["media"],
     });
+  }
+
+  if (videos.length > MAX_PROJECT_VIDEOS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `A project cannot have more than ${MAX_PROJECT_VIDEOS} videos (received ${videos.length}).`,
+      path: ["media"],
+    });
+  }
+
+  const primaryImages = images.filter((img) => img.isPrimary);
+
+  if (primaryImages.length > 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "A project cannot have more than one primary image.",
+      path: ["media"],
+    });
+  }
+
+  // If published, exactly one primary image is strictly required
+  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim());
+  if (data.isPublished) {
+    if (images.length > 0) {
+      if (primaryImages.length !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Published projects must have exactly one primary image selected.",
+          path: ["media"],
+        });
+      }
+    } else if (!hasCoverImage) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A valid cover image is required before publishing a project.",
+        path: ["coverImage"],
+      });
+    }
   }
 });
 
 export const projectCreateSchema = projectSchema.superRefine((data, ctx) => {
-  // A new project cannot be created without a cover image
-  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim());
+  const images = (data.media || []).filter((item) => item.type === "image");
+  const hasCoverImage = Boolean(data.coverImage?.trim()) || Boolean(data.image?.secureUrl?.trim()) || images.length > 0;
   if (!hasCoverImage) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "A cover image is required to create a project.",
+      message: "At least one project image is required to create a project.",
       path: ["coverImage"],
     });
   }

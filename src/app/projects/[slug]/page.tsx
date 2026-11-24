@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, CalendarDays, ExternalLink, Github, Layers3, UserRound } from "lucide-react";
 import { getProjectBySlug } from "@/lib/db";
 import { ArchitectureFlow } from "@/components/architecture-flow";
+import { MediaGallery } from "@/components/media-gallery";
+import { getPrimaryImage } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +14,20 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await getProjectBySlug(slug);
-  return project
-    ? {
-        title: `${project.title} | Case Study`,
-        description: project.summary,
-        openGraph: {
-          title: project.title,
-          description: project.summary,
-          images: project.coverImage || project.image?.secureUrl ? [project.coverImage || project.image?.secureUrl || ""] : [],
-        },
-      }
-    : { title: "Project not found" };
+  if (!project) return { title: "Project not found" };
+
+  const primary = getPrimaryImage(project.media);
+  const ogImage = primary?.secureUrl || project.coverImage || project.image?.secureUrl || "";
+
+  return {
+    title: `${project.title} | Case Study`,
+    description: project.summary,
+    openGraph: {
+      title: project.title,
+      description: project.summary,
+      images: ogImage ? [ogImage] : [],
+    },
+  };
 }
 
 function isValidHttpUrl(str?: string): boolean {
@@ -50,8 +55,9 @@ export default async function ProjectDetailPage({ params }: Props) {
     ["Outcomes & lessons", project.outcomes],
   ].filter((item) => Boolean(item[1]?.trim()));
 
-  const imageUrl = project.coverImage || project.image?.secureUrl;
-  const altText = project.altText || project.image?.altText || `${project.title} project cover`;
+  const primaryImage = getPrimaryImage(project.media);
+  const imageUrl = primaryImage?.secureUrl || project.coverImage || project.image?.secureUrl;
+  const altText = primaryImage?.altText || project.altText || project.image?.altText || `${project.title} project cover`;
   const coverStyle = imageUrl
     ? {
         backgroundImage: `linear-gradient(180deg, rgba(18,18,18,.06), rgba(18,18,18,.35)), url("${imageUrl}")`,
@@ -119,6 +125,11 @@ export default async function ProjectDetailPage({ params }: Props) {
               <h2>System flow</h2>
               <ArchitectureFlow nodes={project.architectureFlow} />
             </section>
+          ) : null}
+
+          {/* Dedicated Media Gallery Section */}
+          {project.media && project.media.length > 0 ? (
+            <MediaGallery media={project.media} projectTitle={project.title} />
           ) : null}
         </div>
         <aside className="detail-sidebar">
