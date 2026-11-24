@@ -22,10 +22,21 @@ export function SiteHeader() {
           <span className="brand-name">KATISO NTSEARE</span>
         </Link>
         <nav className={`main-nav ${open ? "is-open" : ""}`} aria-label="Main navigation">
-          {links.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>{link.label}</Link>)}
-          <Link href="/contact" className="nav-contact" onClick={() => setOpen(false)}>Let's talk <ArrowUpRight size={15} /></Link>
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
+              {link.label}
+            </Link>
+          ))}
+          <Link href="/contact" className="nav-contact" onClick={() => setOpen(false)}>
+            Let&apos;s talk <ArrowUpRight size={15} />
+          </Link>
         </nav>
-        <button className="mobile-menu" onClick={() => setOpen((value) => !value)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
+        <button
+          className="mobile-menu"
+          onClick={() => setOpen((value) => !value)}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+        >
           {open ? <X size={21} /> : <Menu size={21} />}
         </button>
       </div>

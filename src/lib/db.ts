@@ -1,8 +1,37 @@
 import "server-only";
 import { MongoClient, ObjectId, type Collection, type Db, type Document } from "mongodb";
-import type { Project, ProjectInput } from "@/types/project";
+import type { Project, ProjectImage, ProjectInput } from "@/types/project";
 
-type ProjectDocument = Omit<Project, "id"> & { _id: ObjectId } & Document;
+export type ProjectDocument = {
+  _id: ObjectId;
+  title: string;
+  slug: string;
+  summary: string;
+  description: string;
+  category: string;
+  year: string;
+  role: string;
+  problem: string;
+  solution: string;
+  contributions: string;
+  architecture: string;
+  architectureFlow: string[];
+  challenges: string;
+  outcomes: string;
+  technologies: string[];
+  coverImage: string;
+  image?: ProjectImage;
+  altText?: string;
+  liveUrl: string;
+  demoUrl: string;
+  repoUrl: string;
+  isFeatured: boolean;
+  isPublished: boolean;
+  publishedAt?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+} & Document;
 
 type MongoGlobal = typeof globalThis & {
   portfolioMongoClient?: Promise<MongoClient>;
@@ -38,7 +67,7 @@ async function getDatabase(): Promise<Db> {
   return client.db(process.env.MONGODB_DB?.trim() || "katiso_portfolio");
 }
 
-async function getProjectsCollection(): Promise<Collection<ProjectDocument>> {
+export async function getProjectsCollection(): Promise<Collection<ProjectDocument>> {
   if (!mongoGlobal.portfolioProjectsCollection) {
     mongoGlobal.portfolioProjectsCollection = (async () => {
       const database = await getDatabase();
@@ -60,11 +89,25 @@ async function getProjectsCollection(): Promise<Collection<ProjectDocument>> {
 
 function toProject(document: ProjectDocument): Project {
   const { _id, ...project } = document;
-  return { ...project, id: _id.toHexString() };
+  return {
+    ...project,
+    id: _id.toHexString(),
+    coverImage: project.coverImage || project.image?.secureUrl || "",
+    altText: project.altText || project.image?.altText || "",
+    image: project.image,
+  };
 }
 
 function toDocument(input: ProjectInput, timestamps: { createdAt: string; updatedAt: string }): Omit<ProjectDocument, "_id"> {
-  return { ...input, ...timestamps };
+  const coverImage = input.coverImage || input.image?.secureUrl || "";
+  const altText = input.altText || input.image?.altText || "";
+  return {
+    ...input,
+    coverImage,
+    altText,
+    image: input.image,
+    ...timestamps,
+  };
 }
 
 export function isDuplicateKeyError(error: unknown): boolean {
@@ -106,10 +149,11 @@ export async function slugIsTaken(slug: string, exceptId?: string): Promise<bool
 export async function createProject(input: ProjectInput): Promise<Project> {
   const collection = await getProjectsCollection();
   const now = new Date().toISOString();
-  const document: ProjectDocument = {
+  const docData = toDocument(input, { createdAt: now, updatedAt: now });
+  const document = {
+    ...docData,
     _id: new ObjectId(),
-    ...toDocument(input, { createdAt: now, updatedAt: now }),
-  };
+  } as ProjectDocument;
   await collection.insertOne(document);
   return toProject(document);
 }
@@ -118,9 +162,19 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Pr
   if (!ObjectId.isValid(id)) return undefined;
   const collection = await getProjectsCollection();
   const objectId = new ObjectId(id);
+  const now = new Date().toISOString();
+  const updateData: Partial<ProjectDocument> = {
+    ...input,
+    coverImage: input.coverImage || input.image?.secureUrl || "",
+    altText: input.altText || input.image?.altText || "",
+    updatedAt: now,
+  };
+  if (input.isPublished && !input.publishedAt) {
+    updateData.publishedAt = now;
+  }
   const result = await collection.updateOne(
     { _id: objectId },
-    { $set: { ...input, updatedAt: new Date().toISOString() } },
+    { $set: updateData },
   );
   if (result.matchedCount === 0) return undefined;
   return getProjectById(id);

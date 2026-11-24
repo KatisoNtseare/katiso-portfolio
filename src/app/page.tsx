@@ -73,10 +73,10 @@ export default async function HomePage() {
               </div>
               <div className="hero-code-body">
                 <div className="code-line"><span>01</span><code><b>const</b> approach = &#123;</code></div>
-                <div className="code-line"><span>02</span><code>&nbsp;&nbsp;problem: <i>"understand"</i>,</code></div>
-                <div className="code-line"><span>03</span><code>&nbsp;&nbsp;solution: <i>"engineer"</i>,</code></div>
-                <div className="code-line"><span>04</span><code>&nbsp;&nbsp;quality: <i>"always"</i>,</code></div>
-                <div className="code-line"><span>05</span><code>&nbsp;&nbsp;impact: <i>"deliver"</i></code></div>
+                <div className="code-line"><span>02</span><code>&nbsp;&nbsp;problem: <i>&quot;understand&quot;</i>,</code></div>
+                <div className="code-line"><span>03</span><code>&nbsp;&nbsp;solution: <i>&quot;engineer&quot;</i>,</code></div>
+                <div className="code-line"><span>04</span><code>&nbsp;&nbsp;quality: <i>&quot;always&quot;</i>,</code></div>
+                <div className="code-line"><span>05</span><code>&nbsp;&nbsp;impact: <i>&quot;deliver&quot;</i></code></div>
                 <div className="code-line"><span>06</span><code>&#125;;</code></div>
               </div>
               <div className="hero-code-footer"><span><span className="status-dot" /> SYSTEM THINKING</span><span>BUILD · TEST · IMPROVE</span></div>
@@ -102,7 +102,7 @@ export default async function HomePage() {
         <div className="shell intro-grid">
           <div className="intro-aside"><span>01 / A LITTLE ABOUT ME</span><strong>ENGINEERING<br />WITH INTENTION</strong></div>
           <div>
-            <div className="intro-copy">I'm a <strong>Software Developer</strong> with a Diploma in Information Technology: Software Development. I enjoy understanding how systems fit together and translating requirements into applications that are useful, maintainable and reliable.</div>
+            <div className="intro-copy">I&apos;m a <strong>Software Developer</strong> with a Diploma in Information Technology: Software Development. I enjoy understanding how systems fit together and translating requirements into applications that are useful, maintainable and reliable.</div>
             <p className="intro-supporting">My work spans application development, backend engineering, data, cloud fundamentals and the business thinking needed to deliver useful technology.</p>
             <Link className="text-link" href="/about">More about me <ArrowUpRight size={15} /></Link>
           </div>
@@ -168,14 +168,14 @@ export default async function HomePage() {
           <div className="proit-brand-panel"><div className="proit-wordmark">ProIT<span>&lt;/&gt;</span></div><span className="eyebrow">TECHNOLOGY · DELIVERY · INNOVATION</span><div className="proit-brand-note">A technology business built around practical outcomes.</div></div>
           <div className="proit-copy">
             <h2 className="section-title-compact">Engineering beyond the individual project.</h2>
-            <p>I'm also building ProIT Solutions, a technology business focused on helping organisations use software and modern technology to solve practical challenges.</p>
+            <p>I&apos;m also building ProIT Solutions, a technology business focused on helping organisations use software and modern technology to solve practical challenges.</p>
             <div className="service-list"><span className="service-item">Software development</span><span className="service-item">AI & automation</span><span className="service-item">Cloud & DevOps</span><span className="service-item">Cybersecurity</span></div>
             <div className="proit-link-wrap"><a href={site.proit} target="_blank" rel="noreferrer" className="text-link">Explore ProIT Solutions <ExternalLink size={14} /></a></div>
           </div>
         </div>
       </section>
 
-      <section className="cta-band"><div className="shell cta-inner"><div><span className="eyebrow">HAVE AN OPPORTUNITY OR IDEA?</span><h2>Let's make something useful.</h2><p>Open to conversations about engineering roles, collaborations and software projects.</p></div><Link className="button button-primary" href="/contact">Start a conversation <ArrowRight size={16} /></Link></div></section>
+      <section className="cta-band"><div className="shell cta-inner"><div><span className="eyebrow">HAVE AN OPPORTUNITY OR IDEA?</span><h2>Let&apos;s make something useful.</h2><p>Open to conversations about engineering roles, collaborations and software projects.</p></div><Link className="button button-primary" href="/contact">Start a conversation <ArrowRight size={16} /></Link></div></section>
     </main>
   );
 }
