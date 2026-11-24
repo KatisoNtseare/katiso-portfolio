@@ -30,7 +30,7 @@ export default async function HomePage() {
         <div className="folio-shell home-hero-grid">
           <div className="home-hero-copy">
             <span className="folio-kicker">Software developer · ProIT Solutions</span>
-            <h1 className="folio-display"><span>Katiso Ntseare</span><span>Software built around real work.</span></h1>
+            <h1 className="folio-display"><span>Katiso Ntseare</span><span>Software built around <em>real work.</em></span></h1>
             <p className="home-hero-intro">I design and build web applications, backend services and cloud systems that turn operational needs into dependable software.</p>
             <div className="home-hero-actions">
               <Link className="folio-button" href="/projects">Explore selected work <ArrowRight size={16} aria-hidden="true" /></Link>

@@ -12,3 +12,5 @@ coverage/
 # Local database / export files
 *.bson
 *.dump
+
+.skills

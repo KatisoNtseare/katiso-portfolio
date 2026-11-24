@@ -59,6 +59,8 @@
 .home-hero h1 { max-width: 760px; margin: 23px 0 24px; font: 700 clamp(52px, 7.3vw, 92px)/.99 var(--font-display); letter-spacing: -.075em; }
 .home-hero h1 span { display: block; }
 .home-hero h1 span:last-child { color: var(--folio-red); }
+.home-hero h1 > span:last-child { color: var(--folio-ink); }
+.home-hero h1 em { color: var(--folio-red); font-style: normal; }
 .home-hero-intro { max-width: 570px; margin: 0; color: #52524f; font-size: clamp(16px, 1.6vw, 19px); line-height: 1.75; }
 .home-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 31px; }
 .home-availability { display: flex; align-items: center; gap: 9px; margin-top: 36px; color: var(--folio-muted); font-size: 12px; }
@@ -448,7 +450,6 @@
 .public-site .case-hero .case-meta dt,
 .public-site .case-hero .case-meta dd { color: var(--folio-ink); }
 .public-site .home-hero .folio-kicker,
-.public-site .home-hero h1 span:last-child,
 .public-site .case-hero .folio-kicker,
 .public-site .folio-kicker,
 .public-site .folio-link,
