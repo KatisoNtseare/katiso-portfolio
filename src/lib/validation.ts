@@ -108,7 +108,9 @@ export const projectSchema = z.object({
   repoUrl: optionalUrl.default(""),
   isFeatured: z.boolean().default(false),
   isPublished: z.boolean().default(false),
-  publishedAt: z.string().optional(),
+  // Older project records may carry a null publication timestamp. Treat it as
+  // unset; the API assigns the timestamp when publishing.
+  publishedAt: z.string().nullish().transform((value) => value ?? undefined),
   sortOrder: z.number().int().min(0).max(10000).default(0),
 }).superRefine((data, ctx) => {
   const images = (data.media || []).filter((item) => item.type === "image");

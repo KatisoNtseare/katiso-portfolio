@@ -33,6 +33,9 @@ test("project schemas enforce draft and published primary-image rules", () => {
   assert.equal(projectSchema.safeParse({ ...base, media: [image("one")] }).success, true, "draft may have no primary");
   assert.equal(projectCreateSchema.safeParse(base).success, true, "new draft may be empty");
   assert.equal(projectSchema.safeParse({ ...base, isPublished: true, media: [image("one", true)] }).success, true);
+  const legacyDraft = projectSchema.safeParse({ ...base, isPublished: true, publishedAt: null, media: [image("one", true)] });
+  assert.equal(legacyDraft.success, true, "legacy null publication timestamps are treated as unset when publishing");
+  assert.equal(legacyDraft.data.publishedAt, undefined, "the API can assign a trusted timestamp on publish");
   assert.equal(projectSchema.safeParse({ ...base, isPublished: true, coverImage: image("legacy").secureUrl, media: [] }).success, false, "legacy cover cannot bypass publishing rule");
   assert.equal(projectSchema.safeParse({ ...base, isPublished: true, media: [image("one"), image("two")] }).success, false);
   assert.equal(projectSchema.safeParse({ ...base, isPublished: true, media: [image("one", true), image("two", true)] }).success, false);
