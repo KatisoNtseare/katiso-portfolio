@@ -105,6 +105,24 @@ test("Cloudinary cleanup checks references and persists failed deletions", async
   assert.equal(calls.some((call) => call.includes("untrusted")), false);
 });
 
+test("failed Cloudinary deletion is retried and stale records are removed after success", async () => {
+  const publicId = "katiso-portfolio/project-pictures/retry-flow";
+  const queued = new Set();
+  let deletionAttempts = 0;
+  const dependencies = {
+    isReferenced: async () => false,
+    deleteImage: async () => { deletionAttempts += 1; return deletionAttempts > 1; },
+    removeRecord: async (idToRemove) => { queued.delete(idToRemove); },
+    enqueue: async (idToQueue) => { queued.add(idToQueue); },
+  };
+
+  await cleanupUnreferencedProjectImages([publicId], dependencies);
+  assert.equal(queued.has(publicId), true);
+  await cleanupUnreferencedProjectImages([...queued], dependencies);
+  assert.equal(deletionAttempts, 2);
+  assert.equal(queued.has(publicId), false);
+});
+
 test("concurrent upload claims are atomic and return an upload to only one caller", async () => {
   const publicId = "katiso-portfolio/project-pictures/concurrent-upload";
   const records = new Map([[publicId, { _id: publicId }]]);
@@ -124,4 +142,5 @@ test("concurrent upload claims are atomic and return an upload to only one calle
   ]);
   assert.deepEqual(results.flat(), [publicId]);
   assert.equal(records.has(publicId), false);
+  assert.deepEqual(await claimProjectImageUploads(["katiso-portfolio/project-pictures/not-registered"], collection), []);
 });

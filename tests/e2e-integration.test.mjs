@@ -1,10 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MongoClient, ObjectId } from "mongodb";
-import { v2 as cloudinary } from "cloudinary";
 
-// 1x1 valid PNG buffer
-const valid1x1Png = Buffer.from([
+const TEST_DATABASE = "katiso_portfolio_test";
+const validPng = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
   0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
@@ -16,146 +14,106 @@ const valid1x1Png = Buffer.from([
   0x42, 0x60, 0x82,
 ]);
 
-const CLOUDINARY_PROJECT_FOLDER = "katiso-portfolio/project-pictures";
+test("Live application integration with isolated MongoDB and Cloudinary test credentials", async (t) => {
+  const mongoUri = process.env.MONGODB_TEST_URI?.trim();
+  const databaseName = process.env.MONGODB_TEST_DB?.trim();
+  const cloudName = process.env.CLOUDINARY_TEST_CLOUD_NAME?.trim();
+  const apiKey = process.env.CLOUDINARY_TEST_API_KEY?.trim();
+  const apiSecret = process.env.CLOUDINARY_TEST_API_SECRET?.trim();
 
-test("Live Cloudinary & MongoDB Controlled Integration Test", async (t) => {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
-  const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
-  const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
-  const mongoUri = process.env.MONGODB_URI?.trim();
-
-  if (!cloudName || !apiKey || !apiSecret || !mongoUri) {
-    t.skip("Cloudinary or MongoDB credentials not configured; skipping live E2E test.");
+  if (!mongoUri || !databaseName || !cloudName || !apiKey || !apiSecret) {
+    t.skip("Requires MONGODB_TEST_URI, MONGODB_TEST_DB=katiso_portfolio_test, and CLOUDINARY_TEST_* credentials; live services were not used.");
     return;
   }
+  assert.equal(databaseName, TEST_DATABASE, "Live integration tests are restricted to the dedicated test database.");
 
-  cloudinary.config({
-    cloud_name: cloudName,
-    api_key: apiKey,
-    api_secret: apiSecret,
-    secure: true,
-  });
+  process.env.MONGODB_URI = mongoUri;
+  process.env.MONGODB_DB = databaseName;
+  process.env.CLOUDINARY_CLOUD_NAME = cloudName;
+  process.env.CLOUDINARY_API_KEY = apiKey;
+  process.env.CLOUDINARY_API_SECRET = apiSecret;
 
-  const mongoClient = new MongoClient(mongoUri, { serverSelectionTimeoutMS: 10000 });
-  await mongoClient.connect();
-  const db = mongoClient.db(process.env.MONGODB_DB?.trim() || "katiso_portfolio");
-  const collection = db.collection("projects");
+  const [db, cloudinary, cleanup] = await Promise.all([
+    import("../src/lib/db.ts"),
+    import("../src/lib/cloudinary.ts"),
+    import("../src/lib/asset-cleanup.ts"),
+  ]);
+  const slug = `live-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const uploaded = [];
+  let projectId;
 
-  let uploadedPublicId = null;
-  let mongoDocId = null;
-
-  // Cleanup block ensuring no orphan assets remain even if test fails
   t.after(async () => {
-    if (uploadedPublicId) {
-      try {
-        await cloudinary.uploader.destroy(uploadedPublicId, { invalidate: true });
-        console.log(`[TEST CLEANUP] Deleted Cloudinary test asset: ${uploadedPublicId}`);
-      } catch (err) {
-        console.error(`[TEST CLEANUP ERROR] Failed to clean up Cloudinary asset:`, err);
-      }
-    }
-    if (mongoDocId) {
-      try {
-        await collection.deleteOne({ _id: new ObjectId(mongoDocId) });
-        console.log(`[TEST CLEANUP] Deleted MongoDB test document: ${mongoDocId}`);
-      } catch (err) {
-        console.error(`[TEST CLEANUP ERROR] Failed to clean up MongoDB doc:`, err);
-      }
-    }
-    await mongoClient.close();
+    if (projectId) await db.deleteProject(projectId);
+    if (uploaded.length) await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId));
+    await db.closeMongoConnection();
   });
 
-  await t.test("1. Upload temporary test image to Cloudinary under katiso-portfolio/project-pictures", async () => {
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: CLOUDINARY_PROJECT_FOLDER,
-          resource_type: "image",
-          tags: ["automated-test", "temporary"],
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      stream.end(valid1x1Png);
-    });
-
-    assert.ok(uploadResult);
-    assert.ok(uploadResult.public_id);
-    assert.ok(
-      uploadResult.public_id.startsWith(CLOUDINARY_PROJECT_FOLDER),
-      `Public ID must be inside ${CLOUDINARY_PROJECT_FOLDER}, got: ${uploadResult.public_id}`
-    );
-    assert.ok(uploadResult.secure_url.startsWith("https://"));
-    assert.equal(uploadResult.format, "png");
-    assert.equal(uploadResult.width, 1);
-    assert.equal(uploadResult.height, 1);
-
-    uploadedPublicId = uploadResult.public_id;
+  await t.test("uploads multiple real images using the production Cloudinary helper", async () => {
+    uploaded.push(await cloudinary.uploadProjectImageToCloudinary(validPng, { altText: "Test cover" }));
+    uploaded.push(await cloudinary.uploadProjectImageToCloudinary(validPng, { altText: "Test secondary" }));
+    assert.equal(uploaded.length, 2);
+    assert.ok(uploaded.every((item) => cloudinary.isProjectImagePublicId(item.publicId)));
+    assert.ok(uploaded.every((item) => item.secureUrl.startsWith("https://")));
   });
 
-  await t.test("2. Persist project in MongoDB with Cloudinary metadata", async () => {
-    const now = new Date().toISOString();
-    const testDoc = {
-      _id: new ObjectId(),
-      title: "Live E2E Integration Project",
-      slug: `live-e2e-${Date.now()}`,
-      summary: "Temporary integration test project to verify Cloudinary and MongoDB persistence.",
-      description: "Detailed description of integration test project.",
-      category: "Software Development",
+  await t.test("persists, publishes, selects a primary and protects referenced assets", async () => {
+    const media = uploaded.map((image, index) => ({
+      id: `live-${index}`,
+      type: "image",
+      secureUrl: image.secureUrl,
+      publicId: image.publicId,
+      altText: image.altText || "Live integration image",
+      width: image.width,
+      height: image.height,
+      format: image.format,
+      displayOrder: index + 1,
+      isPrimary: index === 0,
+    }));
+    const input = {
+      title: "Live integration project",
+      slug,
+      summary: "Temporary live integration data in the test database.",
+      description: "Live service verification.",
+      category: "Integration test",
       year: "2026",
-      role: "System Tester",
-      problem: "E2E testing",
-      solution: "Live asset upload and verification",
-      contributions: "Automated test script",
-      architecture: "Cloudinary + MongoDB",
-      architectureFlow: ["Test", "Cloudinary", "MongoDB"],
+      role: "Automated test",
+      problem: "Check app persistence",
+      solution: "Isolated integration environment",
+      contributions: "Automated",
+      architecture: "Next.js, MongoDB and Cloudinary",
+      architectureFlow: ["Upload", "Persist", "Publish"],
       challenges: "None",
       outcomes: "Verified",
-      technologies: ["Node.js", "Cloudinary", "MongoDB"],
-      coverImage: `https://res.cloudinary.com/${cloudName}/image/upload/${uploadedPublicId}.png`,
-      image: {
-        secureUrl: `https://res.cloudinary.com/${cloudName}/image/upload/${uploadedPublicId}.png`,
-        publicId: uploadedPublicId,
-        altText: "Live test picture",
-        width: 1,
-        height: 1,
-        format: "png",
-      },
-      altText: "Live test picture",
+      technologies: ["Next.js", "MongoDB", "Cloudinary"],
+      coverImage: media[0].secureUrl,
+      image: undefined,
+      altText: media[0].altText,
+      media,
       liveUrl: "",
       demoUrl: "",
       repoUrl: "",
       isFeatured: false,
       isPublished: false,
-      sortOrder: 1,
-      createdAt: now,
-      updatedAt: now,
+      sortOrder: 0,
     };
+    const created = await db.createProject(input);
+    projectId = created.id;
+    assert.equal((await db.getProjectBySlug(slug)).media.length, 2);
+    assert.equal((await db.getProjects()).some((item) => item.id === projectId), false);
 
-    const insertResult = await collection.insertOne(testDoc);
-    assert.ok(insertResult.insertedId);
-    mongoDocId = insertResult.insertedId.toHexString();
+    input.isPublished = true;
+    input.media = media.map((item) => ({ ...item, isPrimary: item.id === "live-1" }));
+    const updated = await db.updateProject(projectId, input);
+    assert.equal(updated.image.publicId, uploaded[1].publicId);
+    assert.equal((await db.getProjects()).some((item) => item.id === projectId), true);
+    assert.equal(await db.isProjectImageReferenced(uploaded[1].publicId), true);
 
-    const retrieved = await collection.findOne({ _id: insertResult.insertedId });
-    assert.ok(retrieved);
-    assert.equal(retrieved.image.publicId, uploadedPublicId);
-    assert.ok(retrieved.image.secureUrl);
-  });
+    await cleanup.cleanupUnreferencedProjectImages([uploaded[1].publicId]);
+    assert.equal(await db.isProjectImageReferenced(uploaded[1].publicId), true);
 
-  await t.test("3. Clean up Cloudinary asset and delete MongoDB document", async () => {
-    // Delete MongoDB document
-    const delResult = await collection.deleteOne({ _id: new ObjectId(mongoDocId) });
-    assert.equal(delResult.deletedCount, 1);
-    mongoDocId = null;
-
-    // Delete Cloudinary asset
-    const destroyResult = await cloudinary.uploader.destroy(uploadedPublicId, { invalidate: true });
-    assert.ok(
-      destroyResult.result === "ok" || destroyResult.result === "not found",
-      `Expected ok or not found, got ${destroyResult.result}`
-    );
-    uploadedPublicId = null;
+    assert.equal(await db.deleteProject(projectId), true);
+    projectId = undefined;
+    await cleanup.cleanupUnreferencedProjectImages(uploaded.map((item) => item.publicId));
+    assert.equal(await db.isProjectImageReferenced(uploaded[1].publicId), false);
   });
 });

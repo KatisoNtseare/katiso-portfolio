@@ -38,5 +38,14 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Integration tests
+        run: npm run test:integration
+        env:
+          MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
+          MONGODB_TEST_DB: katiso_portfolio_test
+          CLOUDINARY_TEST_CLOUD_NAME: ${{ secrets.CLOUDINARY_TEST_CLOUD_NAME }}
+          CLOUDINARY_TEST_API_KEY: ${{ secrets.CLOUDINARY_TEST_API_KEY }}
+          CLOUDINARY_TEST_API_SECRET: ${{ secrets.CLOUDINARY_TEST_API_SECRET }}
+
       - name: Production build
         run: npm run build

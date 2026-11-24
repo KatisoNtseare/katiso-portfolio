@@ -196,17 +196,25 @@ npm run dev
 
 ## 8. Testing & Quality Checks
 
-Run the automated test suite covering authentication, Cloudinary validation, image magic bytes, MongoDB CRUD operations, email service configuration, Resend error mapping, and spam protection:
+Run the complete suite. It runs unit tests and then the integration test files; live-service tests are explicitly reported as skipped unless test-only credentials are supplied:
 
 ```bash
 npm test
 ```
 
-Run only unit tests (offline, instant execution without requiring `.env.local`):
+Run only unit tests (no live MongoDB, Cloudinary or Resend credentials required):
 
 ```bash
 npm run test:unit
 ```
+
+Run integration tests separately:
+
+```bash
+npm run test:integration
+```
+
+The MongoDB integration test requires `MONGODB_TEST_URI` and `MONGODB_TEST_DB=katiso_portfolio_test`. The Cloudinary/MongoDB integration test additionally requires `CLOUDINARY_TEST_CLOUD_NAME`, `CLOUDINARY_TEST_API_KEY`, and `CLOUDINARY_TEST_API_SECRET`. Tests use only the dedicated `katiso_portfolio_test` database and temporary Cloudinary images. They never fall back to `.env.local`, `MONGODB_URI`, or production Cloudinary credentials. When test-only credentials are absent, the relevant test reports itself as skipped.
 
 Run static type checking:
 

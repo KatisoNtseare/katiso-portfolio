@@ -176,7 +176,7 @@ export function mapResendError(
       statusCode: 503,
       userMessage: "The email delivery system is currently restricted to testing mode. Please try again later or reach out directly on LinkedIn.",
       category: "TESTING_RESTRICTION",
-      developerDiagnostic: `Resend is in testing mode (using onboarding@resend.dev or unverified domain), which restricts delivery only to the email registered on the Resend account. To deliver to '${context?.toEmail}', verify the custom domain 'notify.proit.dev'.`,
+      developerDiagnostic: `Resend restricted delivery to '${context?.toEmail || "the configured recipient"}'. Verify the domain used by CONTACT_FROM_EMAIL and review the sender's sending status in Resend.`,
     };
   }
 

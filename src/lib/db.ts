@@ -42,6 +42,13 @@ type MongoGlobal = typeof globalThis & {
 
 const mongoGlobal = globalThis as MongoGlobal;
 
+export async function closeMongoConnection(): Promise<void> {
+  const clientPromise = mongoGlobal.portfolioMongoClient;
+  mongoGlobal.portfolioMongoClient = undefined;
+  mongoGlobal.portfolioProjectsCollection = undefined;
+  if (clientPromise) await (await clientPromise).close();
+}
+
 function getMongoUri(): string {
   const uri = process.env.MONGODB_URI?.trim();
   if (!uri) {
