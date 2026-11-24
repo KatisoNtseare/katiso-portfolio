@@ -1,6 +1,6 @@
 # Katiso Ntseare — Personal Portfolio
 
-A premium, responsive developer portfolio built with Next.js App Router, TypeScript, MongoDB, and Cloudinary. Project content is managed entirely through an authenticated Admin Dashboard without touching source code.
+A premium, responsive developer portfolio built with Next.js App Router, TypeScript, MongoDB, Cloudinary, and Resend. Project content is managed entirely through an authenticated Admin Dashboard without touching source code, and visitor enquiries are reliably delivered to your inbox with comprehensive diagnostics.
 
 ## Key Features
 
@@ -10,6 +10,7 @@ A premium, responsive developer portfolio built with Next.js App Router, TypeScr
   `katiso-portfolio/project-pictures`
   with automatic metadata persistence (dimensions, format, secure URL, public ID), file-type validation via magic bytes (JPEG, PNG, WebP), 5 MB file size limit, and automated asset cleanup on image replacement or project deletion.
 - **MongoDB Persistence**: Connection pooling, unique slug indexes (`uq_projects_slug`), composite ordering indexes (`ix_projects_public_order`), ObjectId validation, and draft privacy enforcement.
+- **Contact Form & Resend Email Delivery**: Professional enquiry delivery with dual plain-text and escaped HTML bodies, visitor `replyTo` configuration, honeypot spam protection, rate-limiting, reference ID generation, and structured server-side failure diagnostics.
 - **Authentication & Security**: Scrypt password hashing, HMAC-SHA256 session signing, HTTP-only SameSite=Strict cookies, server-side credential isolation, and independent authorization checks on all mutation and upload endpoints.
 - **Integrations**: GitHub profile API, Resend email contact form, CV download, and interactive engineering demonstrations.
 
@@ -19,6 +20,7 @@ A premium, responsive developer portfolio built with Next.js App Router, TypeScr
 - npm 10 or newer.
 - MongoDB Atlas cluster or self-hosted MongoDB instance.
 - Cloudinary account for project picture storage.
+- Resend account for transactional contact form delivery.
 
 ---
 
@@ -64,16 +66,19 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
+# Contact Form & Resend Email Delivery
+RESEND_API_KEY=re_your_api_key
+CONTACT_TO_EMAIL=katisontseare@proit.dev
+CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@notify.proit.dev>"
+
 # Optional Integrations
 GITHUB_USERNAME=KatisoNtseare
 GITHUB_TOKEN=
-RESEND_API_KEY=
-CONTACT_TO_EMAIL=
-CONTACT_FROM_EMAIL=
+NEXT_PUBLIC_LINKEDIN_URL=
 NEXT_PUBLIC_CV_URL=
 ```
 
-> **Important**: Never prefix `CLOUDINARY_API_SECRET`, `SESSION_SECRET`, or `MONGODB_URI` with `NEXT_PUBLIC_`. These credentials must remain strictly server-side.
+> **Important**: Never prefix `RESEND_API_KEY`, `CLOUDINARY_API_SECRET`, `SESSION_SECRET`, or `MONGODB_URI` with `NEXT_PUBLIC_`. These credentials must remain strictly server-side.
 
 ---
 
@@ -111,7 +116,65 @@ Set the generated string as `SESSION_SECRET`.
 
 ---
 
-## 5. MongoDB Verification & Seeding
+## 5. Contact Form & Resend Email Delivery Setup
+
+The portfolio uses [Resend](https://resend.com/) to route contact form submissions to your primary inbox (`katisontseare@proit.dev`).
+
+### Domain Architecture: Preserving Existing Zoho Mail on `proit.dev`
+
+Our email architecture uses a dedicated subdomain for transactional sending:
+- **Root Domain (`proit.dev`)**: Hosts your primary business email on Zoho Mail. The root MX, SPF, and DKIM DNS records remain completely untouched.
+- **Subdomain (`notify.proit.dev`)**: Dedicated exclusively to portfolio outbound notifications via Resend. This isolates transactional mail reputation and prevents any DNS record conflicts with Zoho Mail.
+
+### Step 1: Create Resend Account & API Key
+1. Sign up at [resend.com](https://resend.com/).
+2. Navigate to **API Keys** → **Create API Key**.
+3. Choose the permission: **Sending access** (recommended) or Full access.
+4. Set the generated key in `.env.local`:
+   ```env
+   RESEND_API_KEY=re_your_api_key
+   ```
+
+### Step 2: Add & Verify `notify.proit.dev` in Resend
+1. In the Resend Dashboard, go to **Domains** → **Add Domain**.
+2. Enter the subdomain: `notify.proit.dev`.
+3. Select your region (e.g. Ireland / eu-west-1 or US).
+4. Resend will display DNS records to add:
+   - **DKIM** (TXT records)
+   - **SPF** (TXT record)
+   - **MX** (MX record for `notify.proit.dev`)
+5. In your DNS host (e.g. Cloudflare, Namecheap, GoDaddy), add these records for the host `notify.proit.dev`.
+6. Click **Verify DNS Records** in Resend. Once verified, production emails can be sent from `portfolio@notify.proit.dev`.
+
+### Step 3: Configure Sender and Recipient
+```env
+CONTACT_TO_EMAIL=katisontseare@proit.dev
+CONTACT_FROM_EMAIL="Katiso Ntseare <portfolio@notify.proit.dev>"
+```
+
+### Initial Testing Sandbox (`onboarding@resend.dev`)
+Before `notify.proit.dev` DNS verification propagates, Resend provides a sandbox testing sender:
+```env
+CONTACT_FROM_EMAIL="onboarding@resend.dev"
+```
+> **Testing Restriction**: Resend's test sender can **only** deliver to the email address registered on your Resend account. Once `notify.proit.dev` is verified, you can send to any email address.
+
+### Step 4: Run the Email Diagnostic Check
+Verify your configuration without sending unnecessary emails:
+```bash
+npm run email:check
+```
+This utility inspects environment variables, validates API key permissions, checks sender and recipient formatting, and queries Resend for domain verification status.
+
+### Step 5: Run an Explicit Test Send
+To perform an intentional live test dispatch to your inbox:
+```bash
+npm run email:test -- katisontseare@proit.dev
+```
+
+---
+
+## 6. MongoDB Verification & Seeding
 
 Check the database connection and index initialization:
 
@@ -129,7 +192,7 @@ npm run db:seed
 
 ---
 
-## 6. Running Locally
+## 7. Running Locally
 
 Start the Next.js development server:
 
@@ -138,17 +201,24 @@ npm run dev
 ```
 
 - Public website: <http://localhost:3000>
+- Contact page: <http://localhost:3000/contact>
 - Admin login: <http://localhost:3000/admin/login>
 - Admin dashboard: <http://localhost:3000/admin>
 
 ---
 
-## 7. Testing & Quality Checks
+## 8. Testing & Quality Checks
 
-Run the automated test suite covering authentication, Cloudinary validation, image magic bytes, MongoDB CRUD operations, draft privacy, and live Cloudinary integration:
+Run the automated test suite covering authentication, Cloudinary validation, image magic bytes, MongoDB CRUD operations, email service configuration, Resend error mapping, and spam protection:
 
 ```bash
 npm test
+```
+
+Run only unit tests (offline, instant execution without requiring `.env.local`):
+
+```bash
+npm run test:unit
 ```
 
 Run static type checking:
@@ -171,7 +241,7 @@ npm run build
 
 ---
 
-## 8. Managing Projects (Admin Dashboard)
+## 9. Managing Projects (Admin Dashboard)
 
 Log in to `/admin` to manage your portfolio:
 
@@ -184,7 +254,7 @@ Log in to `/admin` to manage your portfolio:
 
 ---
 
-## 9. Deployment on Oracle Cloud / VPS
+## 10. Deployment on Oracle Cloud / VPS
 
 1. Configure the VPS firewall and ensure MongoDB Atlas allowlists the VPS egress IP.
 2. Clone the repository and configure environment variables in `.env.local` or through systemd environment files.
