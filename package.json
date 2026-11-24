@@ -1,0 +1,36 @@
+{
+  "name": "katiso-ntseare-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:check": "node --env-file=.env.local scripts/check-database.mjs",
+    "admin:hash": "node scripts/hash-password.mjs",
+    "db:seed": "node --env-file=.env.local scripts/seed-database.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "next": "^16.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "resend": "^6.0.2",
+    "zod": "^4.1.12",
+    "server-only": "^0.0.1",
+    "mongodb": "^7.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.1.0",
+    "typescript": "^5.9.3"
+  }
+}

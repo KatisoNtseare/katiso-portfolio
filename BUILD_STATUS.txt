@@ -1,0 +1,28 @@
+MongoDB migration and final package preparation.
+
+Database changes:
+- Uses the official MongoDB Node.js driver for all project persistence.
+- Added cached MongoClient connection handling for Next.js development reloads.
+- Added MongoDB project collection indexes (unique slug and public listing order).
+- Converted project repository functions to async MongoDB operations using ObjectId identifiers.
+- Updated homepage, project pages, project detail metadata, admin page and sitemap to await database operations.
+- Updated project API routes with MongoDB-aware error handling and duplicate-slug responses.
+- Added MongoDB check and safe initial seed scripts.
+- Added four optional unpublished project draft records as JSON seed data.
+- Added MongoDB environment variables and deployment documentation.
+
+Previous UI refinements retained:
+- Premium responsive homepage and project-card styling.
+- Refined About, Experience, Projects and Contact pages.
+- Admin project dashboard with search, status filters and a multi-step project editor.
+- Cover-image preview and editable architecture-flow fields.
+
+Validation to complete in the target environment:
+- npm install / npm ci
+- npm run db:check against a configured MongoDB deployment
+- npm run db:seed against an empty test database
+- npm run lint
+- npm run typecheck
+- npm run build
+- Manual CRUD verification through /admin
+
