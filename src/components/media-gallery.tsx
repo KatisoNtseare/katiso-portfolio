@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Eye, Film, Image as ImageIcon, Maximize2, Video, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film, Image as ImageIcon, Maximize2, Video, X } from "lucide-react";
 import type { ProjectImageMedia, ProjectMedia, ProjectVideoMedia } from "@/types/project";
 import { buildGoogleDriveEmbedUrl, isValidGoogleDriveFileId, sortProjectMedia } from "@/lib/media";
 
@@ -10,6 +10,11 @@ type Props = {
   media: ProjectMedia[];
   projectTitle: string;
 };
+
+function isNextImageSource(src: string): boolean {
+  if (src.startsWith("/")) return true;
+  try { return new URL(src).hostname === "res.cloudinary.com"; } catch { return false; }
+}
 
 export function MediaGallery({ media, projectTitle }: Props) {
   const [activeFilter, setActiveFilter] = useState<"all" | "images" | "videos">("all");
@@ -45,24 +50,14 @@ export function MediaGallery({ media, projectTitle }: Props) {
     setLightboxIndex(null);
   }
 
-  function nextImage() {
-    if (lightboxIndex === null || images.length === 0) return;
-    setLightboxIndex((prev) => ((prev ?? 0) + 1) % images.length);
-  }
-
-  function prevImage() {
-    if (lightboxIndex === null || images.length === 0) return;
-    setLightboxIndex((prev) => ((prev ?? 0) - 1 + images.length) % images.length);
-  }
-
   // Keyboard navigation for lightbox
   useEffect(() => {
     if (lightboxIndex === null) return;
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowRight") nextImage();
-      if (e.key === "ArrowLeft") prevImage();
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowRight") setLightboxIndex((current) => current === null || images.length === 0 ? current : (current + 1) % images.length);
+      if (e.key === "ArrowLeft") setLightboxIndex((current) => current === null || images.length === 0 ? current : (current - 1 + images.length) % images.length);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -87,11 +82,10 @@ export function MediaGallery({ media, projectTitle }: Props) {
         </div>
 
         {images.length > 0 && videos.length > 0 ? (
-          <div className="media-filter-pills" role="tablist" aria-label="Media filter">
+          <div className="media-filter-pills" role="group" aria-label="Filter project media">
             <button
               type="button"
-              role="tab"
-              aria-selected={activeFilter === "all"}
+              aria-pressed={activeFilter === "all"}
               className={`media-filter-btn ${activeFilter === "all" ? "active" : ""}`}
               onClick={() => setActiveFilter("all")}
             >
@@ -99,8 +93,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
             </button>
             <button
               type="button"
-              role="tab"
-              aria-selected={activeFilter === "images"}
+              aria-pressed={activeFilter === "images"}
               className={`media-filter-btn ${activeFilter === "images" ? "active" : ""}`}
               onClick={() => setActiveFilter("images")}
             >
@@ -108,8 +101,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
             </button>
             <button
               type="button"
-              role="tab"
-              aria-selected={activeFilter === "videos"}
+              aria-pressed={activeFilter === "videos"}
               className={`media-filter-btn ${activeFilter === "videos" ? "active" : ""}`}
               onClick={() => setActiveFilter("videos")}
             >
@@ -124,32 +116,22 @@ export function MediaGallery({ media, projectTitle }: Props) {
           if (item.type === "image") {
             return (
               <figure key={item.id} className="media-card media-card-image">
-                <div
+                <button
+                  type="button"
                   className="media-card-thumb-wrap"
                   onClick={() => openLightbox(item)}
-                  role="button"
-                  tabIndex={0}
                   aria-label={`View image: ${item.altText || projectTitle}`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      openLightbox(item);
-                    }
-                  }}
                 >
-                  <img
-                    src={item.secureUrl}
-                    alt={item.altText || `${projectTitle} preview`}
-                    loading="lazy"
-                    className="media-card-img"
-                  />
+                  {isNextImageSource(item.secureUrl)
+                    ? <Image src={item.secureUrl} alt={item.altText || `${projectTitle} preview`} fill sizes="(max-width: 700px) 90vw, 45vw" loading="lazy" className="media-card-img" />
+                    : <span className="media-card-img-fallback" role="img" aria-label={item.altText || `${projectTitle} preview`} style={{ backgroundImage: `url("${item.secureUrl}")` }} />}
                   <div className="media-card-hover-overlay">
                     <span className="media-card-zoom-badge">
                       <Maximize2 size={16} /> View image
                     </span>
                   </div>
                   {item.isPrimary ? <span className="media-primary-badge">Cover image</span> : null}
-                </div>
+                </button>
                 {item.altText ? (
                   <figcaption className="media-card-caption">
                     <span>{item.altText}</span>
@@ -221,7 +203,7 @@ export function MediaGallery({ media, projectTitle }: Props) {
                 <button
                   type="button"
                   className="media-lightbox-nav prev"
-                  onClick={prevImage}
+                  onClick={() => setLightboxIndex((current) => current === null || images.length === 0 ? current : (current - 1 + images.length) % images.length)}
                   aria-label="Previous image"
                 >
                   <ChevronLeft size={28} />
@@ -229,18 +211,16 @@ export function MediaGallery({ media, projectTitle }: Props) {
               ) : null}
 
               <div className="media-lightbox-view">
-                <img
-                  src={activeImage.secureUrl}
-                  alt={activeImage.altText || `${projectTitle} image ${lightboxIndex + 1}`}
-                  className="media-lightbox-image"
-                />
+                {isNextImageSource(activeImage.secureUrl)
+                  ? <Image src={activeImage.secureUrl} alt={activeImage.altText || `${projectTitle} image ${lightboxIndex + 1}`} fill sizes="95vw" priority className="media-lightbox-image" />
+                  : <span className="media-lightbox-fallback" role="img" aria-label={activeImage.altText || `${projectTitle} image ${lightboxIndex + 1}`} style={{ backgroundImage: `url("${activeImage.secureUrl}")` }} />}
               </div>
 
               {images.length > 1 ? (
                 <button
                   type="button"
                   className="media-lightbox-nav next"
-                  onClick={nextImage}
+                  onClick={() => setLightboxIndex((current) => current === null || images.length === 0 ? current : (current + 1) % images.length)}
                   aria-label="Next image"
                 >
                   <ChevronRight size={28} />

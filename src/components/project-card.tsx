@@ -1,59 +1,34 @@
 import Link from "next/link";
-import { ArrowUpRight, Layers3 } from "lucide-react";
+import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
 import type { Project } from "@/types/project";
 
 export function ProjectCard({ project, index = 0 }: { project: Project; index?: number }) {
   const imageUrl = project.coverImage || project.image?.secureUrl;
   const altText = project.altText || project.image?.altText || `${project.title} project cover`;
-
-  const visualStyle = imageUrl
-    ? {
-        backgroundImage: `linear-gradient(180deg, rgba(18,18,18,.05) 0%, rgba(18,18,18,.1) 45%, rgba(18,18,18,.52) 100%), url("${imageUrl}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : undefined;
+  const isOptimizableSource = Boolean(imageUrl && (imageUrl.startsWith("/") || (() => {
+    try { return new URL(imageUrl).hostname === "res.cloudinary.com"; } catch { return false; }
+  })()));
+  const visualStyle = imageUrl && !isOptimizableSource ? { backgroundImage: `url("${imageUrl}")` } : undefined;
 
   return (
-    <Link
-      href={`/projects/${project.slug}`}
-      className={`project-card project-card-${(index % 4) + 1} ${imageUrl ? "has-cover" : "has-placeholder"}`}
-    >
-      <div
-        className="project-visual"
-        style={visualStyle}
-        role={imageUrl ? "img" : undefined}
-        aria-label={imageUrl ? altText : undefined}
-      >
-        <div className="project-visual-top">
-          <span>{project.category}</span>
-          <span>{project.year || "CASE STUDY"}</span>
-        </div>
-        {!imageUrl ? (
-          <div className="project-window" aria-hidden="true">
-            <div className="window-dots"><i /><i /><i /></div>
-            <div className="window-lines"><b /><b /><b /><b /></div>
-            <div className="window-blocks"><i /><i /><i /></div>
-          </div>
-        ) : null}
-        <div className="project-visual-mark"><Layers3 size={34} strokeWidth={1.2} /></div>
-        <span className="project-index">{String(index + 1).padStart(2, "0")}</span>
-        <span className="project-visual-cta">VIEW CASE STUDY <ArrowUpRight size={13} /></span>
+    <Link href={`/projects/${project.slug}`} className="work-card">
+      <div className="work-visual" style={visualStyle} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? altText : undefined}>
+        {imageUrl && isOptimizableSource ? <Image src={imageUrl} alt="" fill sizes={index === 0 ? "(max-width: 700px) 90vw, 100vw" : "(max-width: 700px) 90vw, 50vw"} className="work-image" /> : null}
+        {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>{project.category || "Software project"}</span></div> : null}
+        <div className="work-visual-top"><span>{project.category}</span><span>{project.year || "Project case study"}</span></div>
+        <span className="work-visual-number">{String(index + 1).padStart(2, "0")}</span>
+        <span className="work-visual-action">Read case study <ArrowUpRight size={15} aria-hidden="true" /></span>
       </div>
-      <div className="project-card-content">
+      <div className="work-copy">
         <div>
           <h3>{project.title}</h3>
           <p>{project.summary}</p>
+          <div className="work-tags" aria-label="Technologies">
+            {(project.technologies || []).slice(0, 5).map((technology) => <span className="folio-tag" key={technology}>{technology}</span>)}
+          </div>
         </div>
-        <ArrowUpRight className="project-arrow" size={21} />
-      </div>
-      <div className="project-card-footer">
-        <div className="tag-list">
-          {(project.technologies || []).slice(0, 4).map((tech) => (
-            <span key={tech}>{tech}</span>
-          ))}
-        </div>
-        <span className="project-card-kind">CASE STUDY</span>
+        <ArrowUpRight className="work-card-arrow" size={22} aria-hidden="true" />
       </div>
     </Link>
   );

@@ -7,5 +7,7 @@ import { SiteFooter } from "@/components/site-footer";
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
-  return <>{isAdminRoute ? null : <SiteHeader />}{children}{isAdminRoute ? null : <SiteFooter />}</>;
+  return isAdminRoute
+    ? children
+    : <div className="public-site"><SiteHeader />{children}<SiteFooter /></div>;
 }

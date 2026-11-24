@@ -1,32 +1,21 @@
 import type { Metadata } from "next";
+import { ArrowUpRight, Github, Linkedin, Send } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
+import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Get in touch with Katiso Ntseare about software engineering opportunities and projects.",
+  description: "Contact Katiso Ntseare about software engineering opportunities, collaborations and projects.",
 };
 
 export default function ContactPage() {
   return (
-    <main>
-      <section className="page-hero">
-        <div className="shell">
-          <span className="eyebrow">CONTACT / START A CONVERSATION</span>
-          <h1>Have an opportunity<br />or a problem to solve?</h1>
-          <p>Share a little context and I&apos;ll get back to you. Choose the enquiry type that best describes what you&apos;d like to discuss.</p>
-        </div>
-      </section>
-      <section className="content-section">
-        <div className="shell contact-grid">
-          <aside className="contact-aside">
-            <span className="eyebrow">LET&apos;S CONNECT</span>
-            <h2>Good conversations lead to good work.</h2>
-            <p>I&apos;m open to discussions about software development roles, collaborations, consulting and practical technology projects.</p>
-            <p>The form is ready, but email delivery needs the Resend environment variables configured before it can send messages.</p>
-          </aside>
-          <ContactForm />
-        </div>
-      </section>
+    <main className="portfolio-page contact-page">
+      <section className="folio-page-hero"><div className="folio-shell folio-page-hero-grid"><div><span className="folio-kicker">Contact Katiso</span><h1 className="folio-display">Tell me what you&apos;re working on.</h1><p>Share the context, the challenge and what a useful outcome would look like. I&apos;m open to engineering opportunities, collaborations and practical technology projects.</p></div><p className="folio-page-side-note">Software engineering<br />Project collaboration<br />ProIT Solutions</p></div></section>
+      <section className="folio-content"><div className="folio-shell contact-layout">
+        <aside className="contact-note"><span className="folio-kicker">Start with the problem</span><h2 className="folio-display">Good work begins with a useful conversation.</h2><p>Use the form to share a few details. The enquiry type helps me understand what you have in mind, and the message can be as brief or as detailed as you need.</p><div className="contact-note-links"><a href={site.github} target="_blank" rel="noreferrer"><Github size={17} aria-hidden="true" /> GitHub profile <ArrowUpRight size={14} aria-hidden="true" /></a>{site.linkedin ? <a href={site.linkedin} target="_blank" rel="noreferrer"><Linkedin size={17} aria-hidden="true" /> LinkedIn profile <ArrowUpRight size={14} aria-hidden="true" /></a> : null}<a href={site.proit} target="_blank" rel="noreferrer"><Send size={16} aria-hidden="true" /> ProIT Solutions <ArrowUpRight size={14} aria-hidden="true" /></a></div></aside>
+        <ContactForm />
+      </div></section>
     </main>
   );
 }

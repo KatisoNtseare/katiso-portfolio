@@ -1,43 +1,41 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, CalendarDays, ExternalLink, Github, Layers3, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ExternalLink, Github } from "lucide-react";
 import { getProjectBySlug } from "@/lib/db";
 import { ArchitectureFlow } from "@/components/architecture-flow";
 import { MediaGallery } from "@/components/media-gallery";
 import { getPrimaryImage } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
-
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await getProjectBySlug(slug);
   if (!project) return { title: "Project not found" };
-
   const primary = getPrimaryImage(project.media);
   const ogImage = primary?.secureUrl || project.coverImage || project.image?.secureUrl || "";
-
   return {
     title: `${project.title} | Case Study`,
     description: project.summary,
-    openGraph: {
-      title: project.title,
-      description: project.summary,
-      images: ogImage ? [ogImage] : [],
-    },
+    openGraph: { title: project.title, description: project.summary, images: ogImage ? [ogImage] : [] },
   };
 }
 
-function isValidHttpUrl(str?: string): boolean {
-  if (!str?.trim()) return false;
+function isValidHttpUrl(value?: string): boolean {
+  if (!value?.trim()) return false;
   try {
-    const url = new URL(str.trim());
+    const url = new URL(value.trim());
     return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
+  } catch { return false; }
+}
+
+function isNextImageSource(value?: string): value is string {
+  if (!value) return false;
+  if (value.startsWith("/")) return true;
+  try { return new URL(value).hostname === "res.cloudinary.com"; } catch { return false; }
 }
 
 export default async function ProjectDetailPage({ params }: Props) {
@@ -53,115 +51,46 @@ export default async function ProjectDetailPage({ params }: Props) {
     ["Architecture & engineering", project.architecture],
     ["Challenges & decisions", project.challenges],
     ["Outcomes & lessons", project.outcomes],
-  ].filter((item) => Boolean(item[1]?.trim()));
+  ].filter((section) => Boolean(section[1]?.trim()));
 
-  const primaryImage = getPrimaryImage(project.media);
-  const imageUrl = primaryImage?.secureUrl || project.coverImage || project.image?.secureUrl;
-  const altText = primaryImage?.altText || project.altText || project.image?.altText || `${project.title} project cover`;
-  const coverStyle = imageUrl
-    ? {
-        backgroundImage: `linear-gradient(180deg, rgba(18,18,18,.06), rgba(18,18,18,.35)), url("${imageUrl}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : undefined;
-
-  const hasLiveUrl = isValidHttpUrl(project.liveUrl);
-  const hasDemoUrl = isValidHttpUrl(project.demoUrl);
-  const hasRepoUrl = isValidHttpUrl(project.repoUrl);
+  const primary = getPrimaryImage(project.media);
+  const imageUrl = primary?.secureUrl || project.coverImage || project.image?.secureUrl;
+  const altText = primary?.altText || project.altText || project.image?.altText || `${project.title} project cover`;
+  const coverStyle = imageUrl && !isNextImageSource(imageUrl) ? { backgroundImage: `url("${imageUrl}")` } : undefined;
+  const projectLinks = [
+    { label: "Live application", href: project.liveUrl, icon: ExternalLink },
+    { label: "Demonstration", href: project.demoUrl, icon: ArrowUpRight },
+    { label: "Source repository", href: project.repoUrl, icon: Github },
+  ].filter((item) => isValidHttpUrl(item.href));
 
   return (
-    <main>
-      <section className="project-detail-hero">
-        <div className="shell">
-          <Link className="text-link" href="/projects">
-            <ArrowLeft size={15} /> Back to projects
-          </Link>
-          <div className="project-detail-hero-grid">
-            <div className="project-detail-heading">
-              <span className="eyebrow">{project.category}</span>
-              <h1>{project.title}</h1>
-              <p>{project.summary}</p>
-              <div className="detail-meta">
-                <span>
-                  <CalendarDays size={14} /> {project.year || "Project"}
-                </span>
-                <span>
-                  <UserRound size={14} /> {project.role || "Software development"}
-                </span>
-              </div>
-            </div>
-            <div
-              className={`project-detail-visual ${imageUrl ? "has-cover" : "has-placeholder"}`}
-              style={coverStyle}
-              role={imageUrl ? "img" : undefined}
-              aria-label={imageUrl ? altText : undefined}
-            >
-              <span className="detail-visual-label">PROJECT SNAPSHOT</span>
-              <span className="detail-visual-mark">
-                <Layers3 size={44} strokeWidth={1.1} />
-              </span>
-              <span className="detail-visual-footer">
-                {project.category.toUpperCase()} · {project.year || "CASE STUDY"}
-              </span>
-            </div>
+    <main className="portfolio-page case-page">
+      <section className="case-hero">
+        <div className="folio-shell">
+          <Link className="case-back" href="/projects"><ArrowLeft size={15} aria-hidden="true" /> All projects</Link>
+          <div className="case-heading">
+            <div><span className="folio-kicker">{project.category}</span><h1 className="folio-display">{project.title}</h1><p>{project.summary}</p></div>
+            <dl className="case-meta"><div><dt>Year</dt><dd>{project.year || "Project"}</dd></div><div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div></dl>
+          </div>
+          <div className="case-visual" style={coverStyle} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? altText : undefined}>
+            {isNextImageSource(imageUrl) ? <Image src={imageUrl} alt="" fill priority sizes="(max-width: 700px) 90vw, 100vw" className="case-image" /> : null}
+            {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>{project.category}</span></div> : null}
+            <div className="case-visual-caption"><span>{project.category}</span><span>{project.year || "Engineering case study"}</span></div>
           </div>
         </div>
       </section>
-      <section className="shell detail-layout">
-        <div className="detail-content">
-          {sections.length ? (
-            sections.map(([title, body]) => (
-              <section key={title}>
-                <h2>{title}</h2>
-                <p style={{ whiteSpace: "pre-wrap" }}>{body}</p>
-              </section>
-            ))
-          ) : (
-            <div className="empty-public">This case study is being expanded. More project details will be added soon.</div>
-          )}
-          {project.architectureFlow && project.architectureFlow.length > 1 ? (
-            <section>
-              <h2>System flow</h2>
-              <ArchitectureFlow nodes={project.architectureFlow} />
-            </section>
-          ) : null}
-
-          {/* Dedicated Media Gallery Section */}
-          {project.media && project.media.length > 0 ? (
-            <MediaGallery media={project.media} projectTitle={project.title} />
-          ) : null}
+      <div className="folio-shell case-layout">
+        <div className="case-content">
+          {sections.length ? sections.map(([title, content]) => <section className="case-section" key={title}><h2>{title}</h2><p>{content}</p></section>) : <div className="folio-empty">This case study is being expanded. More project details will be added soon.</div>}
+          {project.architectureFlow && project.architectureFlow.length > 1 ? <section className="case-section"><h2>System flow</h2><ArchitectureFlow nodes={project.architectureFlow} /></section> : null}
+          {project.media?.length ? <MediaGallery media={project.media} projectTitle={project.title} /> : null}
         </div>
-        <aside className="detail-sidebar">
-          <h3>Technologies</h3>
-          <div className="tag-list">
-            {(project.technologies || []).map((tech) => (
-              <span key={tech}>{tech}</span>
-            ))}
-          </div>
-          <h3>Project links</h3>
-          <div className="detail-links">
-            {hasLiveUrl ? (
-              <a href={project.liveUrl.trim()} target="_blank" rel="noreferrer">
-                Live application <ExternalLink size={14} />
-              </a>
-            ) : null}
-            {hasDemoUrl ? (
-              <a href={project.demoUrl.trim()} target="_blank" rel="noreferrer">
-                Demonstration <ArrowUpRight size={14} />
-              </a>
-            ) : null}
-            {hasRepoUrl ? (
-              <a href={project.repoUrl.trim()} target="_blank" rel="noreferrer">
-                Source repository <Github size={14} />
-              </a>
-            ) : null}
-            {!hasLiveUrl && !hasDemoUrl && !hasRepoUrl ? (
-              <span className="detail-no-links">Links will be added when available.</span>
-            ) : null}
-          </div>
+        <aside className="case-sidebar" aria-label="Project details">
+          <h2>Technology</h2><div className="case-tech">{(project.technologies || []).map((technology) => <span className="folio-tag" key={technology}>{technology}</span>)}</div>
+          <h2>Project links</h2>
+          {projectLinks.length ? <div className="case-links">{projectLinks.map(({ label, href, icon: Icon }) => <a href={href.trim()} target="_blank" rel="noreferrer" key={label}>{label}<Icon size={14} aria-hidden="true" /></a>)}</div> : <span className="case-no-links">Links will appear here when available.</span>}
         </aside>
-      </section>
+      </div>
     </main>
   );
 }
