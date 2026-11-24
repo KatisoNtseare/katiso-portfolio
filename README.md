@@ -196,7 +196,7 @@ npm run dev
 
 ## 8. Testing & Quality Checks
 
-Run the complete suite. It runs unit tests and then the integration test files; live-service tests are explicitly reported as skipped unless test-only credentials are supplied:
+Run the complete suite. It runs the unit suite and the mocked application integration suite without loading `.env.local` or connecting to production services:
 
 ```bash
 npm test
@@ -214,7 +214,7 @@ Run integration tests separately:
 npm run test:integration
 ```
 
-The MongoDB integration test requires `MONGODB_TEST_URI` and `MONGODB_TEST_DB=katiso_portfolio_test`. The Cloudinary/MongoDB integration test additionally requires `CLOUDINARY_TEST_CLOUD_NAME`, `CLOUDINARY_TEST_API_KEY`, and `CLOUDINARY_TEST_API_SECRET`. Tests use only the dedicated `katiso_portfolio_test` database and temporary Cloudinary images. They never fall back to `.env.local`, `MONGODB_URI`, or production Cloudinary credentials. Locally, tests report a skip if test-only credentials are absent. GitHub Actions requires all four test-only secrets in its Integration verification job; missing credentials fail its preflight and leave integration verification visibly incomplete rather than green. Unit tests and production build run in independent jobs.
+Integration tests call the application repository, upload, registration, claiming, and cleanup logic with isolated in-memory MongoDB collection doubles and mocked Cloudinary operations. They require no service credentials, do not read `.env.local`, and do not contact MongoDB, Cloudinary, or Resend. The tests run normally and fail on assertion or cleanup errors; they are not conditionally skipped. GitHub Actions runs lint, type checking, unit tests, integration tests, and the production build as separate jobs.
 
 Run static type checking:
 

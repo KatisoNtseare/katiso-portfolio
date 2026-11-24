@@ -194,8 +194,8 @@ export function isDuplicateKeyError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
 }
 
-export async function getProjects(includeDrafts = false): Promise<Project[]> {
-  const collection = await getProjectsCollection();
+export async function getProjects(includeDrafts = false, collectionOverride?: Collection<ProjectDocument>): Promise<Project[]> {
+  const collection = collectionOverride || await getProjectsCollection();
   const filter = projectVisibilityFilter(includeDrafts);
   const documents = await collection
     .find(filter)
@@ -208,21 +208,21 @@ export function projectVisibilityFilter(includeDrafts = false): Filter<ProjectDo
   return includeDrafts ? {} : { isPublished: true };
 }
 
-export async function getProjectBySlug(slug: string): Promise<Project | null> {
-  const collection = await getProjectsCollection();
+export async function getProjectBySlug(slug: string, collectionOverride?: Collection<ProjectDocument>): Promise<Project | null> {
+  const collection = collectionOverride || await getProjectsCollection();
   const document = await collection.findOne({ slug: slug.toLowerCase() });
   return document ? toProject(document) : null;
 }
 
-export async function getProjectById(id: string): Promise<Project | null> {
+export async function getProjectById(id: string, collectionOverride?: Collection<ProjectDocument>): Promise<Project | null> {
   if (!ObjectId.isValid(id)) return null;
-  const collection = await getProjectsCollection();
+  const collection = collectionOverride || await getProjectsCollection();
   const document = await collection.findOne({ _id: new ObjectId(id) });
   return document ? toProject(document) : null;
 }
 
-export async function slugIsTaken(slug: string, currentId?: string): Promise<boolean> {
-  const collection = await getProjectsCollection();
+export async function slugIsTaken(slug: string, currentId?: string, collectionOverride?: Collection<ProjectDocument>): Promise<boolean> {
+  const collection = collectionOverride || await getProjectsCollection();
   const filter: Record<string, unknown> = { slug: slug.toLowerCase() };
   if (currentId && ObjectId.isValid(currentId)) {
     filter._id = { $ne: new ObjectId(currentId) };
@@ -231,8 +231,8 @@ export async function slugIsTaken(slug: string, currentId?: string): Promise<boo
   return Boolean(match);
 }
 
-export async function createProject(input: ProjectInput): Promise<Project> {
-  const collection = await getProjectsCollection();
+export async function createProject(input: ProjectInput, collectionOverride?: Collection<ProjectDocument>): Promise<Project> {
+  const collection = collectionOverride || await getProjectsCollection();
   const now = new Date().toISOString();
   const docData = toDocument(input, { createdAt: now, updatedAt: now });
   const result = await collection.insertOne(docData as ProjectDocument);
@@ -248,9 +248,9 @@ export async function createProject(input: ProjectInput): Promise<Project> {
   };
 }
 
-export async function updateProject(id: string, input: ProjectInput): Promise<Project | null> {
+export async function updateProject(id: string, input: ProjectInput, collectionOverride?: Collection<ProjectDocument>): Promise<Project | null> {
   if (!ObjectId.isValid(id)) return null;
-  const collection = await getProjectsCollection();
+  const collection = collectionOverride || await getProjectsCollection();
   const existing = await collection.findOne({ _id: new ObjectId(id) });
   if (!existing) return null;
 
@@ -266,15 +266,15 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Pr
   return result ? toProject(result) : null;
 }
 
-export async function deleteProject(id: string): Promise<boolean> {
+export async function deleteProject(id: string, collectionOverride?: Collection<ProjectDocument>): Promise<boolean> {
   if (!ObjectId.isValid(id)) return false;
-  const collection = await getProjectsCollection();
+  const collection = collectionOverride || await getProjectsCollection();
   const result = await collection.deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount === 1;
 }
 
-export async function isProjectImageReferenced(publicId: string): Promise<boolean> {
-  const collection = await getProjectsCollection();
+export async function isProjectImageReferenced(publicId: string, collectionOverride?: Collection<ProjectDocument>): Promise<boolean> {
+  const collection = collectionOverride || await getProjectsCollection();
   return Boolean(await collection.findOne({
     $or: [
       { "image.publicId": publicId },
@@ -285,28 +285,28 @@ export async function isProjectImageReferenced(publicId: string): Promise<boolea
 
 type CloudinaryCleanupRecord = { _id: string; attempts: number; createdAt: string; lastAttemptAt: string; lastError: string };
 
-export async function enqueueCloudinaryCleanup(publicId: string, error: string): Promise<void> {
-  const database = await getDatabase();
-  await database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").updateOne(
+export async function enqueueCloudinaryCleanup(publicId: string, error: string, collectionOverride?: Pick<Collection<CloudinaryCleanupRecord>, "updateOne">): Promise<void> {
+  const collection = collectionOverride || (await getDatabase()).collection<CloudinaryCleanupRecord>("cloudinary_cleanup");
+  await collection.updateOne(
     { _id: publicId },
     { $setOnInsert: { createdAt: new Date().toISOString() }, $set: { lastAttemptAt: new Date().toISOString(), lastError: error }, $inc: { attempts: 1 } },
     { upsert: true },
   );
 }
 
-export async function getPendingCloudinaryCleanup(limit = 50): Promise<CloudinaryCleanupRecord[]> {
-  const database = await getDatabase();
-  return database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").find().sort({ createdAt: 1 }).limit(limit).toArray();
+export async function getPendingCloudinaryCleanup(limit = 50, collectionOverride?: Pick<Collection<CloudinaryCleanupRecord>, "find">): Promise<CloudinaryCleanupRecord[]> {
+  const collection = collectionOverride || (await getDatabase()).collection<CloudinaryCleanupRecord>("cloudinary_cleanup");
+  return collection.find().sort({ createdAt: 1 }).limit(limit).toArray();
 }
 
-export async function removeCloudinaryCleanup(publicId: string): Promise<void> {
-  const database = await getDatabase();
-  await database.collection<CloudinaryCleanupRecord>("cloudinary_cleanup").deleteOne({ _id: publicId });
+export async function removeCloudinaryCleanup(publicId: string, collectionOverride?: Pick<Collection<CloudinaryCleanupRecord>, "deleteOne">): Promise<void> {
+  const collection = collectionOverride || (await getDatabase()).collection<CloudinaryCleanupRecord>("cloudinary_cleanup");
+  await collection.deleteOne({ _id: publicId });
 }
 
-export async function registerProjectImageUpload(publicId: string): Promise<void> {
-  const database = await getDatabase();
-  await database.collection<{ _id: string; createdAt: string }>("project_image_uploads").updateOne(
+export async function registerProjectImageUpload(publicId: string, collectionOverride?: Pick<Collection<{ _id: string; createdAt: string }>, "updateOne">): Promise<void> {
+  const collection = collectionOverride || (await getDatabase()).collection<{ _id: string; createdAt: string }>("project_image_uploads");
+  await collection.updateOne(
     { _id: publicId },
     { $set: { createdAt: new Date().toISOString() } },
     { upsert: true },

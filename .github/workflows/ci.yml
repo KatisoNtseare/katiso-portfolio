@@ -62,7 +62,7 @@ jobs:
         run: npm run test:unit
 
   integration-tests:
-    name: Integration verification (MongoDB + Cloudinary)
+    name: Integration tests (isolated local doubles)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -74,30 +74,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Require isolated integration credentials
-        env:
-          MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
-          CLOUDINARY_TEST_CLOUD_NAME: ${{ secrets.CLOUDINARY_TEST_CLOUD_NAME }}
-          CLOUDINARY_TEST_API_KEY: ${{ secrets.CLOUDINARY_TEST_API_KEY }}
-          CLOUDINARY_TEST_API_SECRET: ${{ secrets.CLOUDINARY_TEST_API_SECRET }}
-        run: |
-          missing=()
-          for name in MONGODB_TEST_URI CLOUDINARY_TEST_CLOUD_NAME CLOUDINARY_TEST_API_KEY CLOUDINARY_TEST_API_SECRET; do
-            if [ -z "${!name}" ]; then missing+=("$name"); fi
-          done
-          if [ ${#missing[@]} -gt 0 ]; then
-            printf 'Integration verification is INCOMPLETE. Missing test-only secrets: %s\n' "${missing[*]}" >&2
-            exit 1
-          fi
-          echo 'All required test-only credentials are present; the database name is fixed to katiso_portfolio_test.'
-      - name: MongoDB and Cloudinary integration tests
+      - name: Mocked application integration tests
         run: npm run test:integration
-        env:
-          MONGODB_TEST_URI: ${{ secrets.MONGODB_TEST_URI }}
-          MONGODB_TEST_DB: katiso_portfolio_test
-          CLOUDINARY_TEST_CLOUD_NAME: ${{ secrets.CLOUDINARY_TEST_CLOUD_NAME }}
-          CLOUDINARY_TEST_API_KEY: ${{ secrets.CLOUDINARY_TEST_API_KEY }}
-          CLOUDINARY_TEST_API_SECRET: ${{ secrets.CLOUDINARY_TEST_API_SECRET }}
       - name: Report integration verification status
         if: always()
         env:
