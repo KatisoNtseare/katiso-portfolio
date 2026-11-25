@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = { title: "Experience & approach", description: "Education, project work, entrepreneurship and engineering approach." };
+export const metadata: Metadata = createPageMetadata({
+  title: "Experience and Education",
+  description: "Explore Katiso Ntseare's software engineering experience, IT education, technical leadership and technology ventures in South Africa.",
+  path: "/experience",
+});
 
 const workExperience = [
-  { period: "2025", title: "Software Developer / Product Developer — Taxar", description: "Contributed to product engineering across backend and frontend workflows, authentication, APIs, platform architecture, Git collaboration and deployment practices." },
-  { period: "2025", title: "Computer Tutor — Nelson Mandela University", description: "Tutored students in Microsoft 365, C#, computer networks and information systems, using practical examples to build confidence in technical concepts and problem solving." },
+  { period: "2025", title: "Software Developer / Product Developer - Taxar", description: "Contributed to product engineering across backend and frontend workflows, authentication, APIs, platform architecture, Git collaboration and deployment practices." },
+  { period: "2025", title: "Computer Tutor - ProIT Academy At Nelson Mandela University", description: "Tutored students in Microsoft 365, C#, computer networks and information systems, using practical examples to build confidence in technical concepts and problem solving." },
 ];
 
 const education = [
@@ -15,7 +20,7 @@ const education = [
 const leadership = [
   {
     period: "February 2025 – November 2026",
-    title: "Chairman — Geekulcha Student Society (GKSS)",
+    title: "Chairman - Geekulcha Student Society (GKSS)",
     description: "Led the student-led technology community chapter with a focus on helping students connect academic theory with practical innovation. GKSS organises hackathons, coding boot camps, technical workshops and community outreach programmes across South African and African university and college campuses.",
   },
 ];

@@ -4,8 +4,13 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { CvLink } from "@/components/cv-link";
 import { site } from "@/lib/site";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = { title: "About", description: "The background and engineering approach of Katiso Ntseare." };
+export const metadata: Metadata = createPageMetadata({
+  title: "About",
+  description: "Meet Katiso Ntseare, a South African software developer focused on backend engineering, full-stack applications and secure systems.",
+  path: "/about",
+});
 
 const principles = [
   { title: "Understand first", text: "Clarify the need before adding complexity." },

@@ -629,7 +629,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
           <span className="eyebrow">YOUR PROJECT STUDIO</span>
           <h2>Welcome back, Katiso</h2>
           <p>
-            Your ideas, builds and case studies — all in one happy place.
+            Your ideas, builds and case studies - all in one happy place.
           </p>
         </div>
         <button

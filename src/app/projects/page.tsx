@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import { getProjects } from "@/lib/db";
 import { ProjectCard } from "@/components/project-card";
 import { HomeMotion } from "@/components/home-motion";
+import { createPageMetadata } from "@/lib/metadata";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Projects", description: "Published software projects and engineering case studies by Katiso Ntseare." };
+export const metadata: Metadata = createPageMetadata({
+  title: "Software Projects",
+  description: "Explore software projects by Katiso Ntseare, including full-stack applications, developer tools, secure APIs and digital platforms built with .NET and Next.js.",
+  path: "/projects",
+});
 
 export default async function ProjectsPage() {
   const projects = await getProjects();

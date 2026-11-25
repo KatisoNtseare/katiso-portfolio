@@ -1,4 +1,4 @@
-# Katiso Ntseare — Personal Portfolio
+# Katiso Ntseare - Personal Portfolio
 
 A premium, responsive developer portfolio built with Next.js App Router, TypeScript, MongoDB, Cloudinary, and Resend. Project content is managed entirely through an authenticated Admin Dashboard without touching source code, and visitor enquiries are reliably delivered to your inbox with comprehensive diagnostics.
 

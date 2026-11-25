@@ -7,6 +7,7 @@ import { getProjectBySlug } from "@/lib/db";
 import { ArchitectureFlow } from "@/components/architecture-flow";
 import { MediaGallery } from "@/components/media-gallery";
 import { getPrimaryImage } from "@/lib/media";
+import { createPageMetadata } from "@/lib/metadata";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
@@ -14,14 +15,16 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await getProjectBySlug(slug);
-  if (!project) return { title: "Project not found" };
+  if (!project || !project.isPublished) return { title: "Project not found", robots: { index: false, follow: false } };
   const primary = getPrimaryImage(project.media);
-  const ogImage = primary?.secureUrl || project.coverImage || project.image?.secureUrl || "";
-  return {
-    title: `${project.title} | Case Study`,
+  const image = primary?.secureUrl || project.coverImage || project.image?.secureUrl || undefined;
+  return createPageMetadata({
+    title: `${project.title} Case Study`,
     description: project.summary,
-    openGraph: { title: project.title, description: project.summary, images: ogImage ? [ogImage] : [] },
-  };
+    path: `/projects/${project.slug}`,
+    image,
+    imageAlt: `${project.title} software project case study by Katiso Ntseare`,
+  });
 }
 
 function isValidHttpUrl(value?: string): boolean {
@@ -76,7 +79,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             </div>
             <dl className="k-meta">
               <div><dt>Category</dt><dd>{project.category}</dd></div>
-              <div><dt>Year</dt><dd>{project.year || "—"}</dd></div>
+              <div><dt>Year</dt><dd>{project.year || "-"}</dd></div>
               <div><dt>Role</dt><dd>{project.role || "Software development"}</dd></div>
             </dl>
           </div>

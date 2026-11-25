@@ -2,7 +2,7 @@ export const site = {
   name: "Katiso Ntseare",
   title: "Software Developer",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://katiso.proit.dev",
-  description: "IT professional and software developer building full-stack applications, secure APIs and practical cloud systems.",
+  description: "Katiso Ntseare is a South African software developer building secure APIs, full-stack platforms and cloud-ready applications with .NET, Next.js and Python.",
   github: "https://github.com/KatisoNtseare",
   linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || "https://www.linkedin.com/search/results/people/?keywords=Katiso%20Ntseare",
   email: "katisontseare@outlook.com",

@@ -25,7 +25,6 @@ export function SiteFooter() {
           <div className="k-footer-social">
             <a href={site.github} aria-label="GitHub profile" target="_blank" rel="noreferrer"><Github size={17} /></a>
             {site.linkedin ? <a href={site.linkedin} aria-label="LinkedIn profile" target="_blank" rel="noreferrer"><Linkedin size={17} /></a> : null}
-            <Link href="/admin/login">Admin</Link>
           </div>
         </div>
       </div>

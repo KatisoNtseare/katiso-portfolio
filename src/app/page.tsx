@@ -8,9 +8,14 @@ import { ProjectCard } from "@/components/project-card";
 import { GithubShowcase } from "@/components/github-showcase";
 import { CvLink } from "@/components/cv-link";
 import { HomeMotion } from "@/components/home-motion";
+import { createPageMetadata } from "@/lib/metadata";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Software developer", description: site.description };
+export const metadata: Metadata = createPageMetadata({
+  title: "Software Developer in South Africa",
+  description: site.description,
+  path: "/",
+});
 
 const background = [
   { label: "Education", title: "Diploma in Information Technology", text: "Graduated in Software Development from Nelson Mandela University, with grounding in systems analysis, databases and application design." },

@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { ArrowUpRight, Github, Linkedin, Send } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
 import { site } from "@/lib/site";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Contact",
-  description: "Contact Katiso Ntseare about software engineering opportunities, collaborations and projects.",
-};
+  description: "Contact Katiso Ntseare about software development roles, full-stack projects, secure APIs, technology consulting and collaboration in South Africa.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (

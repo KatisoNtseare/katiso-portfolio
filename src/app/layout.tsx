@@ -19,10 +19,32 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
-  title: { default: "Katiso Ntseare | Software Developer | Backend & Full-Stack", template: "%s | Katiso Ntseare" },
-  description: "Katiso Ntseare is an IT professional specialising in C#, ASP.NET Core, Next.js, React, SQL Server, Python, DevOps and application security in South Africa.",
-  openGraph: { type: "website", url: site.url, title: "Katiso Ntseare | Software Developer", description: site.description, siteName: "Katiso Ntseare" },
-  twitter: { card: "summary_large_image", title: "Katiso Ntseare | Software Developer", description: site.description },
+  title: { default: "Katiso Ntseare - Software Developer in South Africa", template: "%s - Katiso Ntseare" },
+  description: site.description,
+  openGraph: {
+    type: "website",
+    locale: "en_ZA",
+    url: site.url,
+    title: "Katiso Ntseare - Software Developer in South Africa",
+    description: site.description,
+    siteName: site.name,
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Katiso Ntseare - Software Developer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Katiso Ntseare - Software Developer in South Africa",
+    description: site.description,
+    images: ["/twitter-image.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/images/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/images/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/images/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/site.webmanifest",
   robots: { index: true, follow: true },
 };
 
