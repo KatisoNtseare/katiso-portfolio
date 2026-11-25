@@ -154,6 +154,8 @@ body:has(.public-site) { background: #f7f9fc; }
 .k-work:hover .k-work-media img { transform: scale(1.03); }
 .k-work-fallback { position: absolute; inset: 0; display: grid; place-items: center; font: italic 400 clamp(4rem, 9vw, 6rem)/1 var(--display); color: var(--line); }
 .k-work-meta { display: flex; gap: 12px; margin-bottom: 8px; font: 400 12px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.k-project-status { display: inline-flex; align-items: center; width: fit-content; margin: 0 0 10px; padding: 7px 10px; border: 1px solid #d7a64a; border-radius: 999px; background: #fff7df; color: #805a11; font: 700 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+.k-project-status-case { margin: 0 0 16px; }
 .k-work h3 { font: 400 clamp(1.6rem, 2.4vw, 1.9rem)/1.15 var(--display); letter-spacing: -.01em; transition: color .2s; }
 .k-work:hover h3 { color: var(--accent); }
 .k-work-summary { margin-top: 10px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

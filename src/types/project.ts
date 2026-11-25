@@ -59,6 +59,7 @@ export type Project = {
   demoUrl: string;
   repoUrl: string;
   isFeatured: boolean;
+  isInDevelopment: boolean;
   isPublished: boolean;
   publishedAt?: string;
   sortOrder: number;

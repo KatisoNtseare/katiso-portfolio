@@ -54,7 +54,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   ].filter((section) => Boolean(section[1]?.trim()));
 
   const primary = getPrimaryImage(project.media);
-  const imageUrl = primary?.secureUrl || project.coverImage || project.image?.secureUrl;
+  const imageUrl = primary?.secureUrl || project.coverImage || project.image?.secureUrl || "/images/projectDefaultFallBack.jpg";
   const altText = primary?.altText || project.altText || project.image?.altText || `${project.title} project cover`;
   const coverStyle = imageUrl && !isNextImageSource(imageUrl) ? { backgroundImage: `url("${imageUrl}")` } : undefined;
   const projectLinks = [
@@ -69,7 +69,11 @@ export default async function ProjectDetailPage({ params }: Props) {
         <div className="k-shell">
           <Link className="k-back" href="/projects"><ArrowLeft size={15} aria-hidden="true" /> All projects</Link>
           <div className="k-case-title">
-            <div><h1 className="k-display">{project.title}</h1><p className="k-summary">{project.summary}</p></div>
+            <div>
+              {project.isInDevelopment ? <span className="k-project-status k-project-status-case">In development</span> : null}
+              <h1 className="k-display">{project.title}</h1>
+              <p className="k-summary">{project.summary}</p>
+            </div>
             <dl className="k-meta">
               <div><dt>Category</dt><dd>{project.category}</dd></div>
               <div><dt>Year</dt><dd>{project.year || "—"}</dd></div>

@@ -28,6 +28,7 @@ export type ProjectDocument = {
   demoUrl: string;
   repoUrl: string;
   isFeatured: boolean;
+  isInDevelopment: boolean;
   isPublished: boolean;
   publishedAt?: string;
   sortOrder: number;
@@ -154,6 +155,7 @@ export function toProject(document: ProjectDocument): Project {
   return {
     ...project,
     id: _id.toHexString(),
+    isInDevelopment: project.isInDevelopment === true,
     coverImage,
     altText,
     image,
