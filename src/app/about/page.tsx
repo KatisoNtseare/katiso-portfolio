@@ -4,24 +4,47 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { CvLink } from "@/components/cv-link";
 import { site } from "@/lib/site";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = { title: "About", description: "The background and engineering approach of Katiso Ntseare." };
+export const metadata: Metadata = createPageMetadata({
+  title: "About",
+  description: "Meet Katiso Ntseare, a South African software developer focused on backend engineering, full-stack applications and secure systems.",
+  path: "/about",
+});
+
+const principles = [
+  { title: "Understand first", text: "Clarify the need before adding complexity." },
+  { title: "Make boundaries clear", text: "Keep rules, data and access deliberate." },
+  { title: "Build for change", text: "Prefer readable systems over clever shortcuts." },
+  { title: "Deliver with care", text: "Testing and reliability belong in the work." },
+];
 
 export default function AboutPage() {
   return (
-    <main className="portfolio-page about-page">
-      <section className="folio-page-hero"><div className="folio-shell folio-page-hero-grid"><div><h1 className="folio-display">I like knowing how the whole system works.</h1><p>My work starts with understanding the people, rules and constraints around a problem, then shaping a clear path from requirement to dependable software.</p></div><p className="folio-page-side-note">Software developer<br />Building ProIT Solutions<br />Focused on practical outcomes</p></div></section>
-      <section className="folio-content"><div className="folio-shell about-layout">
-        <figure className="about-portrait"><Image src="/images/fullPicture.jpg" alt="Katiso Ntseare" fill sizes="(max-width: 700px) 90vw, 34vw" /></figure>
-        <div className="about-copy">
-          <p className="about-lede">I&apos;m a Software Developer with a Diploma in Information Technology: Software Development.</p>
-          <p>I enjoy understanding how systems fit together and translating requirements into applications that are useful, maintainable and reliable. My interests span backend development, full-stack applications, database engineering and system design.</p>
-          <p>My engineering mindset is practical. I value clear requirements, deliberate architecture, readable code and testing. I think carefully about access, data integrity and the people who will maintain a system after its first release.</p>
-          <p>Alongside software development, I&apos;m building ProIT Solutions: an initiative focused on delivering technology solutions to businesses and organisations. It keeps my attention on the connection between technical decisions and real operating needs.</p>
-          <div className="about-focus" aria-label="Engineering principles"><div><strong>Understand first</strong><span>Clarify the need before adding complexity.</span></div><div><strong>Make boundaries clear</strong><span>Keep rules, data and access deliberate.</span></div><div><strong>Build for change</strong><span>Prefer readable systems over clever shortcuts.</span></div><div><strong>Deliver with care</strong><span>Testing and reliability belong in the work.</span></div></div>
-          <div className="home-hero-actions"><CvLink /><a className="folio-button folio-button-light" href={site.github} target="_blank" rel="noreferrer">GitHub profile <ArrowUpRight size={15} aria-hidden="true" /></a><Link className="folio-link" href="/experience">Explore my experience <ArrowRight size={15} aria-hidden="true" /></Link></div>
+    <main>
+      <section className="folio-page-hero">
+        <div className="k-shell">
+          <h1 className="k-display">I like knowing how the whole system works.</h1>
+          <p>Backend, frontend, data, infrastructure and people: I build by understanding how the full product fits together and what must remain dependable after launch.</p>
         </div>
-      </div></section>
+      </section>
+      <section className="folio-content">
+        <div className="k-shell k-about">
+          <figure className="k-about-portrait"><Image src="/images/fullPicture.jpg" alt="Katiso Ntseare" fill sizes="(max-width: 900px) 360px, 34vw" /></figure>
+          <div className="k-prose">
+            <p className="k-lede">I am an IT professional and software developer who turns operational requirements into dependable applications.</p>
+            <p>I build full-stack applications, REST APIs, authentication systems and database-driven platforms with C#, ASP.NET Core, Entity Framework Core, SQL Server, Next.js, React, TypeScript and Python FastAPI.</p>
+            <p>I enjoy working across the complete product lifecycle: understanding the problem, defining boundaries, modelling data, protecting sensitive workflows and preparing applications for deployment. My academic, tutoring and product-development experience has strengthened both my technical judgement and my ability to explain complex ideas clearly.</p>
+            <p>From February 2025 to November 2026, I served as Chairman of GKSS. The role developed my leadership, communication and community-building skills while I supported student engagement and professional development.</p>
+            <div className="k-principles">{principles.map((item) => <div key={item.title}><strong>{item.title}</strong><span>{item.text}</span></div>)}</div>
+            <div className="k-actions">
+              <CvLink />
+              <a className="k-btn k-btn-ghost" href={site.github} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={15} aria-hidden="true" /></a>
+              <Link className="k-link" href="/experience">Experience <ArrowRight size={15} aria-hidden="true" /></Link>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

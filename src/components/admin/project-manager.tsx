@@ -22,6 +22,7 @@ import {
   Save,
   Search,
   Star,
+  Sprout,
   Trash2,
   Upload,
   Video,
@@ -62,6 +63,7 @@ type Draft = {
   demoUrl: string;
   repoUrl: string;
   isFeatured: boolean;
+  isInDevelopment: boolean;
   isPublished: boolean;
   sortOrder: string;
 };
@@ -93,6 +95,7 @@ const emptyDraft: Draft = {
   demoUrl: "",
   repoUrl: "",
   isFeatured: false,
+  isInDevelopment: false,
   isPublished: false,
   sortOrder: "0",
 };
@@ -182,6 +185,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   const publishedCount = projects.filter((p) => p.isPublished).length;
   const draftCount = projects.length - publishedCount;
   const featuredCount = projects.filter((p) => p.isFeatured).length;
+  const inDevelopmentCount = projects.filter((p) => p.isInDevelopment).length;
   const incompleteCount = projects.filter((p) => !p.coverImage && !p.image?.secureUrl && (!p.media || p.media.length === 0)).length;
 
   const currentImages = useMemo(() => {
@@ -494,22 +498,7 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
       return;
     }
 
-    // Validate cover image requirement
-    const hasImage = images.length > 0 || Boolean(draft.coverImage?.trim()) || Boolean(draft.image?.secureUrl?.trim());
-    if (!editingId && !hasImage) {
-      setError("A cover image is required to create a project. Please upload an image under the Media tab.");
-      setEditorTab("media");
-      setBusy(false);
-      return;
-    }
-
     const primaryImage = getPrimaryImage(draft.media);
-    if (draft.isPublished && !primaryImage && !draft.coverImage?.trim()) {
-      setError("A valid primary cover image is required before publishing this project.");
-      setEditorTab("media");
-      setBusy(false);
-      return;
-    }
 
     const payload = {
       ...draft,
@@ -587,12 +576,6 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
   }
 
   async function togglePublish(project: Project) {
-    const hasImage = Boolean(project.coverImage?.trim()) || Boolean(project.image?.secureUrl?.trim()) || (project.media || []).some(m => m.type === "image");
-    if (!project.isPublished && !hasImage) {
-      setError(`Cannot publish “${project.title}”: A cover image is required before publishing. Please edit the project and upload an image first.`);
-      return;
-    }
-
     setError("");
     setNotice("");
 
@@ -643,10 +626,10 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
     <>
       <section className="manager-toolbar">
         <div>
-          <span className="eyebrow">PORTFOLIO CONTROL CENTER</span>
-          <h2>Project Manager</h2>
+          <span className="eyebrow">YOUR PROJECT STUDIO</span>
+          <h2>Welcome back, Katiso</h2>
           <p>
-            Create, edit, feature and organize your software engineering case studies and project media galleries.
+            Your ideas, builds and case studies - all in one happy place.
           </p>
         </div>
         <button
@@ -691,6 +674,14 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
           <span className="manager-stat-label">FEATURED</span>
           <strong>{featuredCount}</strong>
           <small>On homepage</small>
+        </div>
+        <div className="manager-stat-card manager-stat-development">
+          <span className="manager-stat-icon">
+            <Sprout size={17} />
+          </span>
+          <span className="manager-stat-label">IN DEVELOPMENT</span>
+          <strong>{inDevelopmentCount}</strong>
+          <small>Still growing</small>
         </div>
       </section>
 
@@ -1303,12 +1294,23 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
                 <label className="check-label">
                   <input
                     type="checkbox"
+                    checked={draft.isInDevelopment}
+                    onChange={(event) => update("isInDevelopment", event.target.checked)}
+                  />
+                  <span>
+                    <strong>In development</strong>
+                    <small>Show a public status badge that this project is not yet completed.</small>
+                  </span>
+                </label>
+                <label className="check-label">
+                  <input
+                    type="checkbox"
                     checked={draft.isPublished}
                     onChange={(event) => update("isPublished", event.target.checked)}
                   />
                   <span>
                     <strong>Publish publicly</strong>
-                    <small>Make visible to visitors. Requires exactly one primary image.</small>
+                    <small>Make visible to visitors. The default project image is used when no photo is added.</small>
                   </span>
                 </label>
               </div>
@@ -1438,6 +1440,11 @@ export function ProjectManager({ initialProjects }: { initialProjects: Project[]
                       )}
                       {project.isFeatured ? (
                         <span className="feature-pill">Featured</span>
+                      ) : null}
+                      {project.isInDevelopment ? (
+                        <span className="feature-pill" style={{ background: "#fff7df", color: "#805a11", borderColor: "#d7a64a" }}>
+                          In development
+                        </span>
                       ) : null}
                       {hasNoImage ? (
                         <span className="feature-pill" style={{ background: "#fee2e2", color: "#b91f27", borderColor: "#fca5a5" }}>

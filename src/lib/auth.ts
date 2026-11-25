@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 const COOKIE_NAME = "katiso_admin_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 8;
+const REMEMBERED_SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
 
 type SessionPayload = { username: string; expiresAt: number };
 
@@ -31,12 +32,13 @@ function sign(payload: string, secret: string) {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-export async function createAdminSession(username: string) {
+export async function createAdminSession(username: string, rememberMe = false) {
   const secret = getSecret();
   if (!secret) throw new Error("SESSION_SECRET must contain at least 32 characters.");
+  const duration = rememberMe ? REMEMBERED_SESSION_DURATION_SECONDS : SESSION_DURATION_SECONDS;
   const payload: SessionPayload = {
     username,
-    expiresAt: Math.floor(Date.now() / 1000) + SESSION_DURATION_SECONDS,
+    expiresAt: Math.floor(Date.now() / 1000) + duration,
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const token = `${encoded}.${sign(encoded, secret)}`;
@@ -46,7 +48,7 @@ export async function createAdminSession(username: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: SESSION_DURATION_SECONDS,
+    maxAge: duration,
   });
 }
 

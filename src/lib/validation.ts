@@ -107,6 +107,7 @@ export const projectSchema = z.object({
   demoUrl: optionalUrl.default(""),
   repoUrl: optionalUrl.default(""),
   isFeatured: z.boolean().default(false),
+  isInDevelopment: z.boolean().default(false),
   isPublished: z.boolean().default(false),
   // Older project records may carry a null publication timestamp. Treat it as
   // unset; the API assigns the timestamp when publishing.
@@ -142,15 +143,12 @@ export const projectSchema = z.object({
     });
   }
 
-  // A legacy cover image is read-compatible, but cannot satisfy the publish rule.
-  if (data.isPublished) {
-    if (primaryImages.length !== 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Published projects must have exactly one primary image selected.",
-        path: ["media"],
-      });
-    }
+  if (data.isPublished && images.length > 0 && primaryImages.length !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Published projects with uploaded images must have exactly one primary image selected.",
+      path: ["media"],
+    });
   }
 });
 

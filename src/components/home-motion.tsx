@@ -2,61 +2,27 @@
 
 import { useEffect } from "react";
 
+// Quiet reveal-on-scroll. Content stays visible without JS or with reduced motion.
 export function HomeMotion() {
   useEffect(() => {
-    let cancelled = false;
-    let revert = () => {};
+    const root = document.querySelector<HTMLElement>(".public-site");
+    const items = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
+    if (!root || !items.length) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
 
-    Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([gsapModule, scrollTriggerModule]) => {
-      if (cancelled) return;
-
-      const gsap = gsapModule.gsap;
-      gsap.registerPlugin(scrollTriggerModule.ScrollTrigger);
-
-      const page = document.querySelector<HTMLElement>(".home-page");
-      if (!page) return;
-
-      const context = gsap.context(() => {
-        const media = gsap.matchMedia();
-        media.add("(prefers-reduced-motion: no-preference)", () => {
-          gsap.from(".home-hero-copy > *", {
-            y: 14,
-            duration: 0.65,
-            stagger: 0.08,
-            ease: "power2.out",
-          });
-          gsap.from(".home-portrait", {
-            y: 14,
-            duration: 0.75,
-            delay: 0.12,
-            ease: "power2.out",
-          });
-
-          gsap.utils.toArray<HTMLElement>("[data-gsap-reveal]").forEach((element) => {
-            gsap.from(element, {
-              y: 16,
-              duration: 0.55,
-              ease: "power2.out",
-              scrollTrigger: {
-                trigger: element,
-                start: "top 90%",
-                once: true,
-              },
-            });
-          });
-        });
-
-        return () => media.revert();
-      }, page);
-
-      revert = () => context.revert();
-    }).catch(() => {
-      // Motion is progressive enhancement; content remains visible without GSAP.
-    });
+    root.classList.add("reveal-ready");
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    items.forEach((item) => observer.observe(item));
 
     return () => {
-      cancelled = true;
-      revert();
+      observer.disconnect();
+      root.classList.remove("reveal-ready");
     };
   }, []);
 

@@ -1,17 +1,17 @@
-# Katiso Ntseare — Personal Portfolio
+# Katiso Ntseare - Personal Portfolio
 
 A premium, responsive developer portfolio built with Next.js App Router, TypeScript, MongoDB, Cloudinary, and Resend. Project content is managed entirely through an authenticated Admin Dashboard without touching source code, and visitor enquiries are reliably delivered to your inbox with comprehensive diagnostics.
 
 ## Key Features
 
 - **Public Portfolio**: Responsive homepage, About, Experience, Projects listing, and individual case studies (`/projects/[slug]`).
-- **Admin Dashboard**: Full CRUD interface (`/admin`) for managing portfolio projects, draft/published status, featured status, sorting, category filtering, and real-time search.
-- **Cloudinary Integration**: Mandatory server-side cover picture uploads directly to Cloudinary under the dedicated folder:
+- **Admin Dashboard**: A responsive project studio (`/admin`) for managing portfolio projects, development status, draft/published status, featured status, sorting, category filtering, and real-time search. Projects can use the built-in fallback cover or optional uploaded media.
+- **Cloudinary Integration**: Optional server-side project image uploads directly to Cloudinary under the dedicated folder:
   `katiso-portfolio/project-pictures`
   with automatic metadata persistence (dimensions, format, secure URL, public ID), file-type validation via magic bytes (JPEG, PNG, WebP), 5 MB file size limit, and automated asset cleanup on image replacement or project deletion.
 - **MongoDB Persistence**: Connection pooling, unique slug indexes (`uq_projects_slug`), composite ordering indexes (`ix_projects_public_order`), ObjectId validation, and draft privacy enforcement.
 - **Contact Form & Resend Email Delivery**: Professional enquiry delivery with dual plain-text and escaped HTML bodies, visitor `replyTo` configuration, honeypot spam protection, rate-limiting, reference ID generation, and structured server-side failure diagnostics.
-- **Authentication & Security**: Scrypt password hashing, HMAC-SHA256 session signing, HTTP-only SameSite=Strict cookies, server-side credential isolation, and independent authorization checks on all mutation and upload endpoints.
+- **Authentication & Security**: Scrypt password hashing, HMAC-SHA256 session signing, HTTP-only SameSite=Strict cookies, optional 30-day remembered admin sessions, server-side credential isolation, and independent authorization checks on all mutation and upload endpoints.
 - **Integrations**: GitHub profile API, Resend email contact form, CV download, and interactive engineering demonstrations.
 
 ## Requirements
@@ -100,6 +100,8 @@ Generate a 64-character random session secret:
 ```
 
 Set the generated string as `SESSION_SECRET`.
+
+Admin sessions last 8 hours by default. Select **Keep me signed in** on the login form to extend that session to 30 days on the current device. Signing out clears the session.
 
 ---
 

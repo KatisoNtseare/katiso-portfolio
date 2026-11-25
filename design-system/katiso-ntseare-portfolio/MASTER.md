@@ -1,4 +1,4 @@
-# Katiso Ntseare Portfolio — Design System
+# Katiso Ntseare Portfolio - Design System
 
 This is the source of truth for public portfolio UI. Apply existing project components and tokens before adding new styles. The Engineering Playground is intentionally excluded at the owner's request; do not add it back without a new explicit request.
 

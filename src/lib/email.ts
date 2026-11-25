@@ -76,6 +76,16 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function formatEmailTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-ZA", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Johannesburg",
+  }).format(date);
+}
+
 export function getEmailConfig(): { config?: EmailConfig; error?: string } {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const toEmail = process.env.CONTACT_TO_EMAIL?.trim();
@@ -243,63 +253,100 @@ export function buildContactEmailContent(data: {
   message: string;
   submittedAt?: string;
 }) {
-  const timestamp = data.submittedAt || new Date().toISOString();
+  const timestamp = formatEmailTimestamp(data.submittedAt || new Date().toISOString());
+  const replyHref = `mailto:${encodeURIComponent(data.email)}?subject=${encodeURIComponent(`Re: ${data.subject}`)}`;
+  const messageHtml = escapeHtml(data.message).replace(/\r?\n/g, "<br>");
   const text = [
-    `NEW CONTACT ENQUIRY`,
-    `----------------------------------------`,
-    `From:         ${data.name} <${data.email}>`,
-    `Organisation: ${data.organisation || "Not provided"}`,
-    `Enquiry Type: ${data.enquiryType}`,
-    `Subject:      ${data.subject}`,
-    `Date & Time:  ${timestamp}`,
-    `Source:       Katiso Ntseare Portfolio`,
-    `----------------------------------------`,
+    `New website enquiry`,
+    data.subject,
     ``,
-    `MESSAGE:`,
+    `Name: ${data.name}`,
+    `Email: ${data.email}`,
+    `Organisation: ${data.organisation || "Not provided"}`,
+    `Enquiry type: ${data.enquiryType}`,
+    `Received: ${timestamp}`,
+    ``,
+    `Message`,
     data.message,
     ``,
-    `----------------------------------------`,
-    `Reply directly to this email to contact ${data.name}.`,
+    `Reply to this email to contact ${data.name}.`,
   ].join("\n");
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>New Contact Enquiry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New website enquiry</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #171717; background-color: #f8f8f6; padding: 24px; margin: 0;">
-  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e5e1; border-radius: 12px; padding: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-    <div style="border-bottom: 2px solid #df3035; padding-bottom: 16px; margin-bottom: 20px;">
-      <span style="font-size: 11px; font-weight: 700; color: #df3035; text-transform: uppercase; letter-spacing: 1.5px;">Portfolio Contact Form</span>
-      <h2 style="margin: 6px 0 0; font-size: 20px; color: #171717;">${escapeHtml(data.subject)}</h2>
-    </div>
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-      <tr>
-        <td style="padding: 6px 0; color: #707070; width: 120px;"><strong>From:</strong></td>
-        <td style="padding: 6px 0; color: #171717;">${escapeHtml(data.name)} &lt;<a href="mailto:${escapeHtml(data.email)}" style="color: #df3035; text-decoration: none;">${escapeHtml(data.email)}</a>&gt;</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 0; color: #707070;"><strong>Organisation:</strong></td>
-        <td style="padding: 6px 0; color: #171717;">${escapeHtml(data.organisation || "Not provided")}</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 0; color: #707070;"><strong>Enquiry Type:</strong></td>
-        <td style="padding: 6px 0; color: #171717;">${escapeHtml(data.enquiryType)}</td>
-      </tr>
-      <tr>
-        <td style="padding: 6px 0; color: #707070;"><strong>Submitted:</strong></td>
-        <td style="padding: 6px 0; color: #171717;">${escapeHtml(timestamp)}</td>
-      </tr>
-    </table>
-    <div style="background: #fafaf8; border: 1px solid #efefec; border-radius: 8px; padding: 18px; margin-bottom: 20px;">
-      <strong style="display: block; font-size: 12px; text-transform: uppercase; color: #707070; margin-bottom: 8px; letter-spacing: 1px;">Message:</strong>
-      <p style="margin: 0; white-space: pre-wrap; font-size: 14px; color: #222;">${escapeHtml(data.message)}</p>
-    </div>
-    <div style="border-top: 1px solid #efefec; padding-top: 14px; font-size: 12px; color: #888;">
-      You can reply directly to this notification to reach <strong>${escapeHtml(data.name)}</strong> at <code>${escapeHtml(data.email)}</code>.
-    </div>
-  </div>
+<body style="margin:0; padding:0; background-color:#f4f4f2; color:#20201f; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height:1.55;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">A new message from ${escapeHtml(data.name)} via your portfolio contact form.</div>
+  <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f4f4f2;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:620px; border:1px solid #e7e7e2; background-color:#ffffff;">
+          <tr>
+            <td style="height:4px; background-color:#d92f36; font-size:0; line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px 24px; border-bottom:1px solid #e9e9e5;">
+              <p style="margin:0 0 24px; color:#20201f; font-size:12px; font-weight:700; letter-spacing:1.2px;">KATISO NTSEARE</p>
+              <p style="margin:0 0 7px; color:#b3262d; font-size:12px; font-weight:600;">New website enquiry</p>
+              <h1 style="margin:0; color:#20201f; font-size:24px; font-weight:650; line-height:1.3; overflow-wrap:anywhere;">${escapeHtml(data.subject)}</h1>
+              <p style="margin:10px 0 0; color:#666660; font-size:14px;">A message has arrived through your portfolio contact form.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 32px 8px;">
+              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-size:13px;">
+                <tr>
+                  <td width="140" style="padding:8px 12px 8px 0; color:#6f6f69; vertical-align:top;">From</td>
+                  <td style="padding:8px 0; color:#20201f; font-weight:600;">${escapeHtml(data.name)}</td>
+                </tr>
+                <tr>
+                  <td width="140" style="padding:8px 12px 8px 0; color:#6f6f69; vertical-align:top;">Email</td>
+                  <td style="padding:8px 0;"><a href="mailto:${escapeHtml(data.email)}" style="color:#b3262d; text-decoration:underline;">${escapeHtml(data.email)}</a></td>
+                </tr>
+                <tr>
+                  <td width="140" style="padding:8px 12px 8px 0; color:#6f6f69; vertical-align:top;">Organisation</td>
+                  <td style="padding:8px 0; color:#20201f;">${escapeHtml(data.organisation || "Not provided")}</td>
+                </tr>
+                <tr>
+                  <td width="140" style="padding:8px 12px 8px 0; color:#6f6f69; vertical-align:top;">Enquiry type</td>
+                  <td style="padding:8px 0; color:#20201f;">${escapeHtml(data.enquiryType)}</td>
+                </tr>
+                <tr>
+                  <td width="140" style="padding:8px 12px 8px 0; color:#6f6f69; vertical-align:top;">Received</td>
+                  <td style="padding:8px 0; color:#20201f;">${escapeHtml(timestamp)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:12px 32px 26px;">
+              <p style="margin:0 0 9px; color:#464640; font-size:13px; font-weight:650;">Message</p>
+              <div style="padding:16px 18px; border-left:3px solid #d92f36; background-color:#f8f8f6; color:#343430; font-size:14px; overflow-wrap:anywhere;">${messageHtml}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 28px;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" bgcolor="#20201f" style="border-radius:4px;">
+                    <a href="${escapeHtml(replyHref)}" style="display:inline-block; padding:11px 17px; color:#ffffff; font-size:13px; font-weight:600; text-decoration:none;">Reply to enquiry</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:13px 0 0; color:#74746e; font-size:11px;">You can also reply directly to this email.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px; border-top:1px solid #e9e9e5; color:#777770; font-size:11px;">Katiso Ntseare | Portfolio contact notification</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`.trim();
 

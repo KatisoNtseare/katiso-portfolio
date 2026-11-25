@@ -1,32 +1,28 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight } from "lucide-react";
 import type { Project } from "@/types/project";
 
-export function ProjectCard({ project, index = 0 }: { project: Project; index?: number }) {
-  const imageUrl = project.coverImage || project.image?.secureUrl;
+export function ProjectCard({ project }: { project: Project; index?: number }) {
+  const projectImage = project.coverImage || project.image?.secureUrl;
+  const imageUrl = projectImage || "/images/projectDefaultFallBack.jpg";
   const altText = project.altText || project.image?.altText || `${project.title} project cover`;
-  const isOptimizableSource = Boolean(imageUrl && (imageUrl.startsWith("/") || (() => {
+  const isOptimizableSource = Boolean(imageUrl.startsWith("/") || (() => {
     try { return new URL(imageUrl).hostname === "res.cloudinary.com"; } catch { return false; }
-  })()));
-  const visualStyle = imageUrl && !isOptimizableSource ? { backgroundImage: `url("${imageUrl}")` } : undefined;
+  })());
+  const visualStyle = !isOptimizableSource ? { backgroundImage: `url("${imageUrl}")` } : undefined;
+  const technologies = (project.technologies || []).slice(0, 5);
 
   return (
-    <Link href={`/projects/${project.slug}`} className="work-card" data-gsap-reveal>
-      <div className="work-visual" style={visualStyle} role={imageUrl ? "img" : undefined} aria-label={imageUrl ? altText : undefined}>
-        {imageUrl && isOptimizableSource ? <Image src={imageUrl} alt="" fill sizes={index === 0 ? "(max-width: 700px) 90vw, 100vw" : "(max-width: 700px) 90vw, 50vw"} className="work-image" /> : null}
-        {!imageUrl ? <div className="work-visual-placeholder" aria-hidden="true"><span>Project imagery unavailable</span></div> : null}
+    <Link href={`/projects/${project.slug}`} className="k-work" data-reveal>
+      <div className="k-work-media" style={visualStyle} role="img" aria-label={altText}>
+        {isOptimizableSource ? <Image src={imageUrl} alt="" fill sizes="(max-width: 700px) 92vw, (max-width: 1100px) 50vw, 380px" /> : null}
       </div>
-      <div className="work-copy">
-        <div>
-          <p className="work-meta">{project.category}{project.year ? <><span aria-hidden="true">·</span><span className="folio-mono">{project.year}</span></> : null}</p>
-          <h3>{project.title}</h3>
-          <p>{project.summary}</p>
-          <div className="work-tags" aria-label="Technologies">
-            {(project.technologies || []).slice(0, 5).map((technology) => <span className="folio-tag" key={technology}>{technology}</span>)}
-          </div>
-        </div>
-        <ArrowUpRight className="work-card-arrow" size={20} aria-hidden="true" />
+      <div>
+        <p className="k-work-meta"><span>{project.category}</span>{project.year ? <span>{project.year}</span> : null}</p>
+        {project.isInDevelopment ? <span className="k-project-status">In development</span> : null}
+        <h3>{project.title}</h3>
+        <p className="k-work-summary">{project.summary}</p>
+        {technologies.length ? <ul className="k-work-tags" aria-label="Technologies">{technologies.map((technology) => <li key={technology}>{technology}</li>)}</ul> : null}
       </div>
     </Link>
   );

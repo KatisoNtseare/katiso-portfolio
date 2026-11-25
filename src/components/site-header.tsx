@@ -24,27 +24,21 @@ export function SiteHeader() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  function closeMenu() { setOpen(false); }
+  const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined);
+  const close = () => setOpen(false);
 
   return (
-    <header className="folio-header">
-      <div className="folio-shell folio-header-inner">
-        <Link href="/" className="folio-brand" aria-label="Katiso Ntseare home" onClick={closeMenu}>
-          <span className="folio-brand-mark" aria-hidden="true">K<span>.</span></span>
-          <span>KATISO NTSEARE</span>
-        </Link>
-        <nav id="primary-navigation" className={`folio-nav ${open ? "is-open" : ""}`} aria-label="Main navigation">
+    <header className="k-bar">
+      <div className="k-shell k-bar-inner">
+        <Link href="/" className="k-wordmark" onClick={close}>Katiso Ntseare</Link>
+        <nav id="primary-navigation" className={`k-nav${open ? " is-open" : ""}`} aria-label="Main navigation">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} aria-current={pathname === link.href || pathname.startsWith(`${link.href}/`) ? "page" : undefined} onClick={closeMenu}>
-              {link.label}
-            </Link>
+            <Link key={link.href} href={link.href} aria-current={current(link.href)} onClick={close}>{link.label}</Link>
           ))}
-          <Link href="/contact" className="folio-nav-contact" aria-current={pathname === "/contact" ? "page" : undefined} onClick={closeMenu}>
-            Contact
-          </Link>
+          <Link href="/contact" className="k-nav-cta" aria-current={current("/contact")} onClick={close}>Contact</Link>
         </nav>
         <button
-          className="folio-menu"
+          className="k-menu"
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-label={open ? "Close navigation menu" : "Open navigation menu"}

@@ -70,6 +70,9 @@ test("application email helpers validate sender configuration and format", async
       message: "Please review <img src=x>",
     });
     assert.ok(body.text.includes("visitor@example.com"));
+    assert.ok(body.text.includes("New website enquiry"));
+    assert.ok(body.html.includes("Reply to enquiry"));
+    assert.ok(body.html.includes('href="mailto:visitor%40example.com?subject=Re%3A%20Hello"'));
     assert.ok(body.html.includes("&lt;script&gt;"));
     assert.equal(body.html.includes("<img src=x>"), false);
   });
