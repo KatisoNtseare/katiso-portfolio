@@ -98,7 +98,7 @@ export const projectSchema = z.object({
   architectureFlow: z.array(z.string().trim().min(1).max(80)).max(8).default([]),
   challenges: z.string().max(5000).default(""),
   outcomes: z.string().max(5000).default(""),
-  technologies: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  technologies: z.array(z.string().trim().min(1).max(50)).max(30).default([]),
   coverImage: optionalUrl.default(""),
   image: projectImageSchema.optional(),
   altText: z.string().trim().max(300).default(""),

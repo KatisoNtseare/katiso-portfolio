@@ -43,6 +43,15 @@ test("project schemas allow fallback covers and validate uploaded primary images
   assert.equal(projectSchema.safeParse({ ...base, media: [{ ...video("video"), isPrimary: true }] }).success, false, "video cannot be marked primary");
 });
 
+test("project updates accept the Luminar Learning technology list and live URL", () => {
+  const parsed = projectSchema.safeParse({
+    ...base,
+    liveUrl: "https://soit-iis.mandela.ac.za/grp-03-21",
+    technologies: Array.from({ length: 21 }, (_, index) => `Technology ${index + 1}`),
+  });
+  assert.equal(parsed.success, true);
+});
+
 test("video schema derives its embed URL and rejects mismatched or hostile links", () => {
   const parsed = projectSchema.safeParse({ ...base, media: [video("vid") ] });
   assert.equal(parsed.success, true);
